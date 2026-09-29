@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: existence-backend
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: "pip install -r requirements.txt"
+    startCommand: "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port $PORT"
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: existence-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+      - key: PIN_MAX_FAILED_ATTEMPTS
+        value: 5
+      - key: PIN_LOCKOUT_MINUTES
+        value: 15
+
+databases:
+  - name: existence-db
+    plan: free
+    databaseName: existence
+    user: existence_user
