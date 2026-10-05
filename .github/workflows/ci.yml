@@ -29,11 +29,15 @@ jobs:
 
       - name: Run Database Migrations (SQLite Testbed)
         working-directory: ./backend
+        env:
+          PYTHONPATH: .
         run: |
-          alembic upgrade head
+          python -m alembic upgrade head
 
       - name: Execute Pytest Automated Test Suite
         working-directory: ./backend
+        env:
+          PYTHONPATH: .
         run: |
           pytest tests/ -v
 
