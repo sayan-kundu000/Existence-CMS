@@ -6,15 +6,19 @@ interface AuthContextType {
   user: User | null;
   loading: boolean;
   isAuthenticated: boolean;
+  isAdmin: boolean;
   pinStatus: PinStatus | null;
   activePin: string | null;
   login: (username: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  lockPin: () => Promise<void>;
   refreshPinStatus: () => Promise<void>;
   verifyPin: (pin: string) => Promise<boolean>;
   setupPin: (pin: string) => Promise<boolean>;
   changePin: (currentPin: string, newPin: string) => Promise<boolean>;
   setActivePin: (pin: string | null) => void;
+  hasRole: (role: string) => boolean;
+  hasPermission: (permission: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -30,6 +34,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (api.getToken()) {
         const status = await api.getPinStatus();
         setPinStatus(status);
+        if (status.is_locked) {
+          setActivePinState(null);
+          api.setActivePin(null);
+        }
       }
     } catch {
       // Ignored if unauthenticated or locked
@@ -47,7 +55,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(null);
       }
     } catch {
-      api.logout();
+      await api.logout();
       setUser(null);
     } finally {
       setLoading(false);
@@ -63,20 +71,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await loadUser();
   };
 
-  const logout = () => {
-    api.logout();
+  const logout = async () => {
+    await api.logout();
     setUser(null);
     setPinStatus(null);
     setActivePinState(null);
   };
 
-  const verifyPin = async (pin: string): Promise<boolean> => {
-    const res = await api.verifyPin(pin);
-    const tokenToUse = res.pin_token || pin;
-    setActivePinState(tokenToUse);
-    api.setActivePin(tokenToUse);
+  const lockPin = async () => {
+    await api.lockPin();
+    setActivePinState(null);
     await refreshPinStatus();
-    return true;
+  };
+
+  const verifyPin = async (pin: string): Promise<boolean> => {
+    try {
+      const res = await api.verifyPin(pin);
+      const tokenToUse = res.pin_token || pin;
+      setActivePinState(tokenToUse);
+      api.setActivePin(tokenToUse);
+      await refreshPinStatus();
+      return true;
+    } catch (err) {
+      setActivePinState(null);
+      api.setActivePin(null);
+      await refreshPinStatus();
+      throw err;
+    }
   };
 
   const setupPin = async (pin: string): Promise<boolean> => {
@@ -101,21 +122,39 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActivePinState(pin);
   };
 
+  const hasRole = (role: string): boolean => {
+    if (!user) return false;
+    return user.role.toLowerCase() === role.toLowerCase();
+  };
+
+  const hasPermission = (permission: string): boolean => {
+    if (!user) return false;
+    if (user.role === 'admin') return true;
+    if (user.permissions && Array.isArray(user.permissions)) {
+      return user.permissions.includes('*') || user.permissions.includes(permission);
+    }
+    return false;
+  };
+
   return (
     <AuthContext.Provider
       value={{
         user,
         loading,
         isAuthenticated: !!user,
+        isAdmin: user?.role === 'admin',
         pinStatus,
         activePin,
         login,
         logout,
+        lockPin,
         refreshPinStatus,
         verifyPin,
         setupPin,
         changePin,
-        setActivePin
+        setActivePin,
+        hasRole,
+        hasPermission
       }}
     >
       {children}

@@ -68,3 +68,21 @@ class InvalidStateTransitionError(AppException):
 class DatabaseConstraintError(AppException):
     def __init__(self, message: str = "Database constraint violation occurred."):
         super().__init__(message=message, code="DATABASE_CONSTRAINT_VIOLATION", status_code=409)
+
+
+class BusinessRuleError(AppException):
+    def __init__(self, message: str = "A business rule constraint was violated.", details: Optional[List[Any]] = None):
+        super().__init__(message=message, code="BUSINESS_RULE_ERROR", status_code=400, details=details)
+
+
+class RateLimitExceededError(AppException):
+    def __init__(self, retry_after_seconds: int = 60, message: Optional[str] = None):
+        msg = message or f"Too many requests. Please wait {retry_after_seconds} seconds before retrying."
+        super().__init__(
+            message=msg,
+            code="RATE_LIMIT_EXCEEDED",
+            status_code=429,
+            details=[{"retry_after": retry_after_seconds}]
+        )
+        self.retry_after = retry_after_seconds
+

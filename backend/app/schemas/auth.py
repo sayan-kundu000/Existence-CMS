@@ -1,11 +1,11 @@
 from datetime import datetime
-from typing import Optional
+from typing import Optional, List
 from pydantic import BaseModel, EmailStr, Field, ConfigDict
 
 
 class UserLogin(BaseModel):
     username: str = Field(..., min_length=3, max_length=50)
-    password: str = Field(..., min_length=6)
+    password: str = Field(..., min_length=1)
 
 
 class UserRegister(BaseModel):
@@ -22,6 +22,7 @@ class TokenResponse(BaseModel):
     username: str
     role: str
     pin_configured: bool
+    permissions: Optional[List[str]] = None
 
 
 class UserOut(BaseModel):
@@ -33,4 +34,21 @@ class UserOut(BaseModel):
     role: str
     is_active: bool
     pin_configured: bool = False
+    permissions: Optional[List[str]] = None
     created_at: datetime
+
+
+class AuthSessionOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    token_identifier: str
+    expires_at: datetime
+    created_at: datetime
+    last_used_at: Optional[datetime] = None
+    is_current: bool = False
+
+
+class LogoutResponse(BaseModel):
+    success: bool
+    message: str

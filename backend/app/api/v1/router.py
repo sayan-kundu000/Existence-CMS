@@ -13,7 +13,8 @@ from app.api.v1.endpoints import (
     personality,
     cms,
     audit,
-    health
+    health,
+    projects
 )
 
 api_router = APIRouter()
@@ -25,6 +26,7 @@ api_router.include_router(profile.router, prefix="/profile", tags=["Profile"])
 api_router.include_router(education.router, prefix="/education", tags=["Education"])
 api_router.include_router(experience.router, prefix="/experience", tags=["Work Experience"])
 api_router.include_router(skills.router, prefix="/skills", tags=["Skills & 7-Level Ratings"])
+api_router.include_router(projects.router, prefix="/projects", tags=["Projects Engine & Multiple Links"])
 api_router.include_router(hobbies.router, prefix="/hobbies", tags=["Hobbies"])
 api_router.include_router(interests.router, prefix="/interests", tags=["Interests"])
 api_router.include_router(hobbies_interests.router, prefix="/hobbies-interests", tags=["Hobbies & Interests (Combined)"])

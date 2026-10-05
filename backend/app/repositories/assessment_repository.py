@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Tuple
 from datetime import datetime, timezone
 import json
 from sqlalchemy.orm import Session
@@ -103,12 +103,21 @@ class AssessmentRepository:
             session.status = "COMPLETED"
             session.completed_at = datetime.now(timezone.utc)
 
+            # Check if result already exists for this session and clean it up atomically
+            existing_result = self.get_result_by_session_id(session.id)
+            if existing_result:
+                self.db.delete(existing_result)
+                self.db.flush()
+
             # 2. Create AssessmentResult
+            version_str = getattr(session, "assessment_version", "1.0") or "1.0"
             result = AssessmentResult(
                 session_id=session.id,
                 assessment_type=session.assessment_type,
                 result_code=result_code,
                 result_title=result_title,
+                result_version=version_str,
+                is_public=True,
                 summary=summary,
                 scores_json=json.dumps(scores),
                 soft_skills_json=json.dumps(soft_skills),
@@ -139,6 +148,24 @@ class AssessmentRepository:
                         percentage=float(val)
                     )
                     self.db.add(ts)
+            elif any(k in scores for k in ["O", "C", "E", "A", "N"]):
+                mapping = {
+                    "O": "Openness",
+                    "C": "Conscientiousness",
+                    "E": "Extraversion",
+                    "A": "Agreeableness",
+                    "N": "Neuroticism"
+                }
+                for k, trait_name in mapping.items():
+                    if k in scores:
+                        val = float(scores[k])
+                        ts = PersonalityTraitScore(
+                            result_id=result.id,
+                            trait_name=trait_name,
+                            score_value=val,
+                            percentage=val
+                        )
+                        self.db.add(ts)
 
             # Soft skills
             for s in soft_skills:
@@ -178,13 +205,40 @@ class AssessmentRepository:
     def get_result_by_session_id(self, session_id: str) -> Optional[AssessmentResult]:
         return self.db.query(AssessmentResult).filter(AssessmentResult.session_id == session_id).first()
 
-    def get_all_results(self, limit: int = 50) -> List[AssessmentResult]:
-        return self.db.query(AssessmentResult).order_by(AssessmentResult.completed_at.desc()).limit(limit).all()
+    def get_result_by_id(self, result_id: int) -> Optional[AssessmentResult]:
+        return self.db.query(AssessmentResult).filter(AssessmentResult.id == result_id).first()
 
-    def get_latest_result_by_type(self, assessment_type: str) -> Optional[AssessmentResult]:
-        return (
-            self.db.query(AssessmentResult)
-            .filter(AssessmentResult.assessment_type == assessment_type.upper())
-            .order_by(AssessmentResult.completed_at.desc())
-            .first()
-        )
+    def get_all_results(self, limit: int = 50, public_only: bool = False) -> List[AssessmentResult]:
+        query = self.db.query(AssessmentResult)
+        if public_only:
+            query = query.filter(AssessmentResult.is_public == True)
+        return query.order_by(AssessmentResult.completed_at.desc()).limit(limit).all()
+
+    def get_latest_result_by_type(self, assessment_type: str, public_only: bool = False) -> Optional[AssessmentResult]:
+        query = self.db.query(AssessmentResult).filter(AssessmentResult.assessment_type == assessment_type.upper())
+        if public_only:
+            query = query.filter(AssessmentResult.is_public == True)
+        return query.order_by(AssessmentResult.completed_at.desc()).first()
+
+    def update_session_progress(self, session_id: str, progress_index: int) -> Optional[AssessmentSession]:
+        session = self.get_session(session_id)
+        if session:
+            session.progress_index = progress_index
+            self.db.commit()
+            self.db.refresh(session)
+        return session
+
+    def update_result_visibility(self, result_id: int, is_public: bool) -> Optional[AssessmentResult]:
+        result = self.get_result_by_id(result_id)
+        if result:
+            result.is_public = is_public
+            self.db.commit()
+            self.db.refresh(result)
+        return result
+
+    def get_results_for_comparison(
+        self, session_id_1: str, session_id_2: str
+    ) -> Tuple[Optional[AssessmentResult], Optional[AssessmentResult]]:
+        res1 = self.get_result_by_session_id(session_id_1)
+        res2 = self.get_result_by_session_id(session_id_2)
+        return res1, res2

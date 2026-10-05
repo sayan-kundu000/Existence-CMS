@@ -36,6 +36,7 @@ class DashboardStatsOut(BaseModel):
     experience_count: int
     work_experience_count: Optional[int] = None
     skills_count: int
+    projects_count: int = 0
     hobbies_interests_count: int
     hobbies_count: int = 0
     interests_count: int = 0

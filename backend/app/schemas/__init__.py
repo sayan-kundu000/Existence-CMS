@@ -9,7 +9,17 @@ from app.schemas.pin import (
 from app.schemas.profile import ProfileBase, ProfileUpdate, ProfileOut
 from app.schemas.education import EducationBase, EducationCreate, EducationUpdate, EducationOut
 from app.schemas.experience import ExperienceBase, ExperienceCreate, ExperienceUpdate, ExperienceOut
-from app.schemas.skill import SkillBase, SkillCreate, SkillUpdate, SkillOut, SkillReorderItem
+from app.schemas.skill import (
+    SkillBase,
+    SkillCreate,
+    SkillUpdate,
+    SkillPatch,
+    SkillOut,
+    SkillRatingLevel,
+    SkillCategoriesOut,
+    SkillReorderItem,
+    SkillReorderRequest
+)
 from app.schemas.hobby_interest import HobbyInterestBase, HobbyInterestCreate, HobbyInterestUpdate, HobbyInterestOut
 from app.schemas.assessment import (
     AssessmentType,
@@ -24,6 +34,27 @@ from app.schemas.assessment import (
     SynthesisUpdateRequest
 )
 from app.schemas.audit import ContentRevisionOut, AuditEventOut, DashboardStatsOut
+from app.schemas.project import (
+    TechnologyBase,
+    TechnologyCreate,
+    TechnologyOut,
+    ProjectTechnologyOut,
+    ProjectTechnologyInput,
+    ProjectLinkBase,
+    ProjectLinkCreate,
+    ProjectLinkUpdate,
+    ProjectLinkPatch,
+    ProjectLinkOut,
+    ProjectLinkReorderItem,
+    ProjectSkillOut,
+    ProjectBase,
+    ProjectCreate,
+    ProjectUpdate,
+    ProjectPatch,
+    ProjectOut,
+    ProjectReorderItem,
+    ProjectCategoriesOut
+)
 
 __all__ = [
     "UserLogin",
@@ -49,8 +80,12 @@ __all__ = [
     "SkillBase",
     "SkillCreate",
     "SkillUpdate",
+    "SkillPatch",
     "SkillOut",
+    "SkillRatingLevel",
+    "SkillCategoriesOut",
     "SkillReorderItem",
+    "SkillReorderRequest",
     "HobbyInterestBase",
     "HobbyInterestCreate",
     "HobbyInterestUpdate",
@@ -67,5 +102,24 @@ __all__ = [
     "SynthesisUpdateRequest",
     "ContentRevisionOut",
     "AuditEventOut",
-    "DashboardStatsOut"
+    "DashboardStatsOut",
+    "TechnologyBase",
+    "TechnologyCreate",
+    "TechnologyOut",
+    "ProjectTechnologyOut",
+    "ProjectTechnologyInput",
+    "ProjectLinkBase",
+    "ProjectLinkCreate",
+    "ProjectLinkUpdate",
+    "ProjectLinkPatch",
+    "ProjectLinkOut",
+    "ProjectLinkReorderItem",
+    "ProjectSkillOut",
+    "ProjectBase",
+    "ProjectCreate",
+    "ProjectUpdate",
+    "ProjectPatch",
+    "ProjectOut",
+    "ProjectReorderItem",
+    "ProjectCategoriesOut"
 ]

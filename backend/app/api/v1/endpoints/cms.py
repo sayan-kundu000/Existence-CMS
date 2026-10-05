@@ -5,6 +5,7 @@ from app.models.profile import Profile
 from app.models.education import Education
 from app.models.experience import Experience
 from app.models.skill import Skill
+from app.models.project import Project
 from app.models.hobby import Hobby
 from app.models.interest import Interest
 from app.models.hobby_interest import HobbyInterest
@@ -30,6 +31,7 @@ def get_cms_dashboard_stats(
     edu_count = db.query(Education).count()
     exp_count = db.query(Experience).count()
     skills_count = db.query(Skill).count()
+    projects_count = db.query(Project).count()
 
     hobbies_table_count = db.query(Hobby).count()
     interests_table_count = db.query(Interest).count()
@@ -54,6 +56,7 @@ def get_cms_dashboard_stats(
         experience_count=exp_count,
         work_experience_count=exp_count,
         skills_count=skills_count,
+        projects_count=projects_count,
         hobbies_interests_count=hi_count,
         hobbies_count=hobbies_count,
         interests_count=interests_count,

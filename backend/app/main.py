@@ -1,12 +1,13 @@
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, status
+from fastapi import FastAPI, Request, Response, Depends, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from starlette.exceptions import HTTPException as StarletteHTTPException
+from sqlalchemy.orm import Session
 from app.core.config import settings
-from app.core.database import engine, Base, SessionLocal
+from app.core.database import engine, Base, SessionLocal, get_db
 from app.core.security import hash_password
 from app.core.exceptions import AppException
 from app.middleware.correlation_id import CorrelationIdMiddleware
@@ -28,6 +29,22 @@ def init_db():
     if os.getenv("TESTING") == "True":
         return
     Base.metadata.create_all(bind=engine)
+
+    # Ensure domain column exists on skills table for existing databases
+    try:
+        from sqlalchemy import text
+        with engine.connect() as conn:
+            if engine.dialect.name == "sqlite":
+                res = conn.execute(text("PRAGMA table_info(skills)"))
+                cols = [row[1] for row in res.fetchall()]
+                if cols and "domain" not in cols:
+                    conn.execute(text("ALTER TABLE skills ADD COLUMN domain VARCHAR(100)"))
+                    conn.commit()
+            elif engine.dialect.name == "postgresql":
+                conn.execute(text("ALTER TABLE skills ADD COLUMN IF NOT EXISTS domain VARCHAR(100)"))
+                conn.commit()
+    except Exception:
+        pass
 
     db = SessionLocal()
     try:
@@ -86,7 +103,14 @@ def init_db():
             db.commit()
             print(f"[Existence Init] Seeded initial admin account: username='{default_username}'")
 
-        # 4. Synchronize Assessment Definitions & Question Banks (43 items per assessment)
+        # Link baseline profile to admin account if not yet attached
+        first_admin = db.query(User).first()
+        if existing_profile and first_admin and getattr(existing_profile, "user_id", None) is None:
+            existing_profile.user_id = first_admin.id
+            db.commit()
+
+
+        # 4. Synchronize Assessment Definitions & Question Banks (75 items per assessment)
         for code, meta in ASSESSMENT_REGISTRY.items():
             defn = db.query(AssessmentDefinition).filter(AssessmentDefinition.code == code).first()
             if not defn:
@@ -141,7 +165,8 @@ def init_db():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup validation and database initialization
+    settings.validate_production_config()
     init_db()
     yield
     # Shutdown
@@ -157,17 +182,36 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS Middleware
+from app.middleware.security_headers import SecurityHeadersMiddleware
+
+# Centralized Explicit CORS Configuration (Prompt 09 Section 36)
+cors_origins = list(settings.CORS_ORIGINS)
+if settings.ENVIRONMENT == "development":
+    dev_defaults = [
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:5173",
+    ]
+    for o in dev_defaults:
+        if o not in cors_origins:
+            cors_origins.append(o)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"] if settings.ENVIRONMENT == "development" else settings.CORS_ORIGINS,
+    allow_origins=cors_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
+    expose_headers=["X-Correlation-ID", "Retry-After"],
 )
 
 # Request Correlation ID Middleware
 app.add_middleware(CorrelationIdMiddleware)
+
+# DevSecOps Production Security Headers Middleware (Prompt 09 Section 38)
+app.add_middleware(SecurityHeadersMiddleware)
+
 
 # Standardized Centralized Exception Handlers (Section 27 Contract)
 app.add_exception_handler(AppException, app_exception_handler)
@@ -189,3 +233,16 @@ def root_redirect():
         "api": settings.API_V1_PREFIX,
         "status": "operational"
     }
+
+
+# Root Health & Readiness Endpoints (Render / Container probes)
+from app.api.v1.endpoints.health import liveness as root_liveness, readiness as root_readiness
+
+@app.get("/health", summary="Root process liveness probe", tags=["Health"])
+def health_probe():
+    return root_liveness()
+
+
+@app.get("/readiness", summary="Root dependency readiness probe", tags=["Health"])
+def readiness_probe(response: Response, db: Session = Depends(get_db)):
+    return root_readiness(response=response, db=db)

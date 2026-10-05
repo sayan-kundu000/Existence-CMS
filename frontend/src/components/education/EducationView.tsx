@@ -23,8 +23,21 @@ export const EducationView: React.FC<EducationViewProps> = ({ educations, onNavi
     );
   }
 
-  // Sorted by ordering or chronologically
+  // Level hierarchy: Doctorate -> Post Graduate -> Graduate -> Diploma -> High School -> Matriculation
+  const LEVEL_ORDER: Record<string, number> = {
+    'Doctorate': 1,
+    'Post Graduate': 2,
+    'Graduate': 3,
+    'Diploma': 4,
+    'Undergraduate': 4,
+    'High School': 5,
+    'Matriculation': 6
+  };
+
   const sortedEducations = [...educations].sort((a, b) => {
+    const orderA = LEVEL_ORDER[a.level] ?? 99;
+    const orderB = LEVEL_ORDER[b.level] ?? 99;
+    if (orderA !== orderB) return orderA - orderB;
     if (a.ordering !== b.ordering) return a.ordering - b.ordering;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
@@ -58,9 +71,19 @@ export const EducationView: React.FC<EducationViewProps> = ({ educations, onNavi
 
             <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 hover:border-purple-500/30 transition-all shadow-xl space-y-3">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-500/10 text-purple-300 border border-purple-500/20 w-fit">
-                  {edu.level}
-                </span>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-purple-500/10 text-purple-300 border border-purple-500/20 w-fit">
+                    {edu.level}
+                  </span>
+                  {edu.score_type && edu.score_value != null && (
+                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20 flex items-center gap-1.5">
+                      <Award className="w-3.5 h-3.5 text-amber-400" />
+                      {edu.score_type === 'Percentage'
+                        ? `${edu.score_value}%`
+                        : `${edu.score_value} / ${edu.score_type === 'CGPA 10' ? '10' : '5'} CGPA`}
+                    </span>
+                  )}
+                </div>
 
                 <div className="flex items-center gap-2">
                   {edu.currently_studying ? (
@@ -79,7 +102,7 @@ export const EducationView: React.FC<EducationViewProps> = ({ educations, onNavi
 
               <div>
                 <h3 className="text-lg sm:text-xl font-bold text-white tracking-tight">
-                  {edu.stream}
+                  {edu.stream || `${edu.level} Education`}
                 </h3>
                 {edu.institution && (
                   <p className="text-xs sm:text-sm text-slate-400 flex items-center gap-1.5 mt-1 font-medium">

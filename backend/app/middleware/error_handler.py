@@ -8,6 +8,10 @@ from app.core.logging import logger
 
 async def app_exception_handler(request: Request, exc: AppException):
     """Handles all custom domain and application exceptions."""
+    headers = {}
+    if hasattr(exc, "retry_after"):
+        headers["Retry-After"] = str(exc.retry_after)
+
     return JSONResponse(
         status_code=exc.status_code,
         content={
@@ -16,8 +20,10 @@ async def app_exception_handler(request: Request, exc: AppException):
                 "message": exc.message,
                 "details": exc.details
             }
-        }
+        },
+        headers=headers if headers else None
     )
+
 
 
 async def validation_exception_handler(request: Request, exc: RequestValidationError):

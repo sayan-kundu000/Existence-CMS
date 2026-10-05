@@ -20,6 +20,7 @@ from app.schemas.assessment import (
     AssessmentResultOut,
     QuestionItem
 )
+from app.repositories.assessment_repository import AssessmentRepository
 from app.services.personality_scoring import (
     score_mbti,
     score_disc,
@@ -64,6 +65,8 @@ def result_to_dict(res: AssessmentResult) -> dict:
         "assessment_type": res.assessment_type,
         "result_code": res.result_code,
         "result_title": res.result_title,
+        "result_version": getattr(res, "result_version", "1.0") or "1.0",
+        "is_public": getattr(res, "is_public", True) if getattr(res, "is_public", None) is not None else True,
         "summary": res.summary,
         "scores": scores,
         "soft_skills": soft_skills,
@@ -177,15 +180,30 @@ def submit_assessment(
         if existing_result:
             return result_to_dict(existing_result)
 
-    # Persist individual responses
+    repo = AssessmentRepository(db)
+
+    # Persist / upsert individual responses safely to prevent duplicate key errors
     for ans in req.answers:
-        resp = AssessmentResponse(
-            session_id=session.id,
-            question_id=ans.question_id,
-            dimension=ans.dimension,
-            selected_value=ans.selected_value
-        )
-        db.add(resp)
+        existing_resp = db.query(AssessmentResponse).filter(
+            AssessmentResponse.session_id == session.id,
+            AssessmentResponse.question_id == ans.question_id
+        ).first()
+        if existing_resp:
+            existing_resp.dimension = ans.dimension
+            existing_resp.response_value = ans.selected_value
+            existing_resp.selected_value = ans.selected_value
+            existing_resp.answered_at = datetime.now(timezone.utc)
+        else:
+            resp = AssessmentResponse(
+                session_id=session.id,
+                question_id=ans.question_id,
+                dimension=ans.dimension,
+                response_value=ans.selected_value,
+                selected_value=ans.selected_value,
+                answered_at=datetime.now(timezone.utc)
+            )
+            db.add(resp)
+    db.flush()
 
     # Score based on type
     scored_data = None
@@ -198,26 +216,17 @@ def submit_assessment(
     else:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Unsupported assessment scoring type")
 
-    # Save AssessmentResult
-    result = AssessmentResult(
-        session_id=session.id,
-        assessment_type=session.assessment_type,
+    # Record completed results atomically via repository
+    result = repo.complete_session_and_record_results(
+        session=session,
         result_code=scored_data["result_code"],
         result_title=scored_data["result_title"],
-        scores_json=json.dumps(scored_data["scores"]),
-        soft_skills_json=json.dumps(scored_data["soft_skills"]),
-        strengths_json=json.dumps(scored_data["strengths"]),
-        weaknesses_json=json.dumps(scored_data["weaknesses"]),
         summary=scored_data["summary"],
-        completed_at=datetime.now(timezone.utc)
+        scores=scored_data["scores"],
+        soft_skills=scored_data["soft_skills"],
+        strengths=scored_data["strengths"],
+        weaknesses=scored_data["weaknesses"]
     )
-    db.add(result)
-
-    # Mark session completed
-    session.status = "COMPLETED"
-    session.completed_at = datetime.now(timezone.utc)
-    db.commit()
-    db.refresh(result)
 
     # Refresh Personality Synthesis
     refresh_synthesis(db)

@@ -11,10 +11,11 @@ import { EducationView } from './components/education/EducationView';
 import { ExperienceView } from './components/experience/ExperienceView';
 import { SkillsView } from './components/skills/SkillsView';
 import { PersonalityView } from './components/personality/PersonalityView';
+import { ProjectsView } from './components/projects/ProjectsView';
 import { InterestsView } from './components/interests/InterestsView';
 import { ContactView } from './components/contact/ContactView';
 import { CmsDashboard } from './components/cms/CmsDashboard';
-import { Profile, Education, Experience, Skill, HobbyInterest, PersonalitySynthesis, PublicTabType } from './types';
+import { Profile, Education, Experience, Skill, Project, HobbyInterest, PersonalitySynthesis, PublicTabType } from './types';
 import { api } from './services/api';
 
 const parseRoute = (path: string): AllTabType => {
@@ -24,6 +25,7 @@ const parseRoute = (path: string): AllTabType => {
   if (p.startsWith('/education')) return 'education';
   if (p.startsWith('/experience')) return 'experience';
   if (p.startsWith('/skills')) return 'skills';
+  if (p.startsWith('/projects')) return 'projects';
   if (p.startsWith('/personality')) return 'personality';
   if (p.startsWith('/interests')) return 'interests';
   if (p.startsWith('/contact')) return 'contact';
@@ -41,6 +43,8 @@ const getPageTitle = (tab: AllTabType, name?: string | null): string => {
       return `${baseName}Work Trajectory | Existence`;
     case 'skills':
       return `${baseName}7-Level Mastery Engine | Existence`;
+    case 'projects':
+      return `${baseName}Projects & Tech Stack Engine | Existence`;
     case 'personality':
       return `${baseName}Psychological Intelligence | Existence`;
     case 'interests':
@@ -65,6 +69,7 @@ const AppContent: React.FC = () => {
   const [educations, setEducations] = useState<Education[]>([]);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [hobbiesInterests, setHobbiesInterests] = useState<HobbyInterest[]>([]);
   const [synthesis, setSynthesis] = useState<PersonalitySynthesis | null>(null);
 
@@ -77,20 +82,69 @@ const AppContent: React.FC = () => {
     setLoading(true);
     setFetchError(null);
     try {
-      const [p, ed, ex, sk, hi, syn] = await Promise.all([
-        api.getProfile().catch(() => null),
-        api.getEducation().catch(() => []),
-        api.getExperience().catch(() => []),
-        api.getSkills(false).catch(() => []),
-        api.getHobbiesInterests().catch(() => []),
-        api.getPersonalitySynthesis().catch(() => null)
-      ]);
-      setProfile(p);
-      setEducations(ed);
-      setExperiences(ex);
-      setSkills(sk);
-      setHobbiesInterests(hi);
-      setSynthesis(syn);
+      try {
+        const consolidated = await api.getConsolidatedPublicProfile();
+        setProfile(consolidated.profile);
+        setEducations(consolidated.education || []);
+        setExperiences(consolidated.experience || []);
+        setSkills(consolidated.skills || []);
+        setProjects(consolidated.projects || []);
+
+        let combinedHI = [
+          ...(consolidated.hobbies || []).map(h => ({
+            id: h.id,
+            type: 'hobby' as const,
+            name: h.name,
+            category: h.category,
+            icon: h.icon,
+            ordering: h.ordering || 0,
+            created_at: h.created_at,
+            updated_at: h.updated_at
+          })),
+          ...(consolidated.interests || []).map(i => ({
+            id: i.id,
+            type: 'interest' as const,
+            name: i.name,
+            category: i.category,
+            icon: i.icon,
+            ordering: i.ordering || 0,
+            created_at: i.created_at,
+            updated_at: i.updated_at
+          }))
+        ];
+
+        if (combinedHI.length === 0) {
+          try {
+            const hiFallback = await api.getHobbiesInterests();
+            if (hiFallback && hiFallback.length > 0) {
+              combinedHI = hiFallback;
+            }
+          } catch (err) {
+            console.warn('Fallback hobbies-interests fetch failed:', err);
+          }
+        }
+
+        setHobbiesInterests(combinedHI);
+        setSynthesis(consolidated.personality);
+      } catch {
+        // Fallback to individual calls if consolidated endpoint unavailable
+        const [p, ed, ex, sk, proj, hi, syn] = await Promise.all([
+          api.getProfile().catch(() => null),
+          api.getEducation().catch(() => []),
+          api.getExperience().catch(() => []),
+          api.getSkills(false).catch(() => []),
+          api.getProjects(false).catch(() => []),
+          api.getHobbiesInterests().catch(() => []),
+          api.getPersonalitySynthesis().catch(() => null)
+        ]);
+        setProfile(p);
+        setEducations(ed);
+        setExperiences(ex);
+        setSkills(sk);
+        setProjects(proj);
+        setHobbiesInterests(hi);
+        setSynthesis(syn);
+      }
     } catch (e: any) {
       console.error('Data fetch error:', e);
       setFetchError(e?.message || 'Failed to fetch portfolio data');
@@ -145,11 +199,15 @@ const AppContent: React.FC = () => {
   const primaryEmail = primaryEmailObj?.email || (profile?.email_ids && profile.email_ids.length > 0 ? profile.email_ids[0] : null);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/30 selection:text-indigo-200">
+    <div className="min-h-screen bhagwa-bg text-amber-50 flex flex-col font-sans selection:bg-amber-600/40 selection:text-amber-100 relative overflow-x-hidden">
+      {/* Ambient Bhagwa / Saffron Glow Atmosphere */}
+      <div className="fixed top-0 left-1/4 w-96 h-96 bg-gradient-to-br from-amber-600/15 via-orange-600/10 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+      <div className="fixed bottom-10 right-10 w-96 h-96 bg-gradient-to-tl from-orange-600/20 via-amber-600/10 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
+
       {/* Skip to Content link for accessibility */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-bold shadow-lg"
+        className="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 z-50 px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold shadow-lg"
       >
         Skip to main content
       </a>
@@ -211,6 +269,10 @@ const AppContent: React.FC = () => {
                 onNavigate={(t) => handleTabChange(t)}
                 onNavigateToCms={() => handleTabChange('cms')}
               />
+            )}
+
+            {currentTab === 'projects' && (
+              <ProjectsView projects={projects} />
             )}
 
             {currentTab === 'personality' && (

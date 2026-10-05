@@ -20,6 +20,17 @@ from app.models.assessment import (
     PersonalitySynthesis
 )
 from app.models.audit import ContentRevision, AuditEvent
+from app.models.project import (
+    Project,
+    ProjectLink,
+    Technology,
+    ProjectTechnology,
+    ProjectSkill,
+    GitHubAccountLink,
+    PROJECT_STATUSES,
+    LINK_TYPES,
+    TECH_CATEGORIES
+)
 
 __all__ = [
     "Base",
@@ -49,5 +60,14 @@ __all__ = [
     "WeaknessRecord",
     "PersonalitySynthesis",
     "ContentRevision",
-    "AuditEvent"
+    "AuditEvent",
+    "Project",
+    "ProjectLink",
+    "Technology",
+    "ProjectTechnology",
+    "ProjectSkill",
+    "GitHubAccountLink",
+    "PROJECT_STATUSES",
+    "LINK_TYPES",
+    "TECH_CATEGORIES"
 ]

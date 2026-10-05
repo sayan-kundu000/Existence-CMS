@@ -133,10 +133,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Key Strengths */}
           <div className="glass-card p-6 rounded-3xl border border-slate-800/80">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-4 flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              Verified Key Strengths
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-2">
+                <Sparkles className="w-4 h-4" />
+                Verified Key Strengths
+              </h3>
+              <span className="text-[10px] font-mono text-slate-500">
+                {synthesis.assessments_completed?.length || 1} Test{(synthesis.assessments_completed?.length || 1) !== 1 ? 's' : ''} Basis
+              </span>
+            </div>
             {synthesis.key_strengths.length > 0 ? (
               <ul className="space-y-2.5">
                 {synthesis.key_strengths.slice(0, 5).map((str, i) => (
@@ -153,10 +158,15 @@ export const ProfileView: React.FC<ProfileViewProps> = ({
 
           {/* Key Growth Blindspots / Weaknesses */}
           <div className="glass-card p-6 rounded-3xl border border-slate-800/80">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 mb-4 flex items-center gap-2">
-              <Shield className="w-4 h-4" />
-              Key Growth Blindspots (Weaknesses)
-            </h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-2">
+                <Shield className="w-4 h-4" />
+                Key Growth Blindspots (Weaknesses)
+              </h3>
+              <span className="text-[10px] font-mono text-slate-500">
+                {synthesis.assessments_completed?.length || 1} Test{(synthesis.assessments_completed?.length || 1) !== 1 ? 's' : ''} Basis
+              </span>
+            </div>
             {synthesis.key_weaknesses.length > 0 ? (
               <ul className="space-y-2.5">
                 {synthesis.key_weaknesses.slice(0, 5).map((wk, i) => (

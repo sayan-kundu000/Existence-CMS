@@ -14,7 +14,7 @@ class AssessmentDefinition(Base):
     __tablename__ = "assessment_definitions"
 
     id = Column(Integer, primary_key=True, index=True)
-    code = Column(String(30), unique=True, nullable=False, index=True)  # "MBTI", "DISC", "BIG_FIVE"
+    code = Column(String(30), nullable=False, index=True)  # "MBTI", "DISC", "BIG_FIVE"
     name = Column(String(120), nullable=False)
     version = Column(String(20), default="1.0", nullable=False)
     tagline = Column(String(255), nullable=True)
@@ -22,11 +22,16 @@ class AssessmentDefinition(Base):
     is_active = Column(Boolean, default=True, nullable=False)
     question_count = Column(Integer, default=0, nullable=False)
     estimated_minutes = Column(Integer, default=5, nullable=False)
+    status = Column(String(20), default="PUBLISHED", nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
     assessment_type = Column(String(30), default="", nullable=True)
     is_configured = Column(Boolean, default=True, nullable=True)
+
+    __table_args__ = (
+        UniqueConstraint("code", "version", name="uq_assessment_definition_code_version"),
+    )
 
     def __init__(self, **kwargs):
         if "code" in kwargs and "assessment_type" not in kwargs:
@@ -39,6 +44,7 @@ class AssessmentDefinition(Base):
 
     questions = relationship("AssessmentQuestion", back_populates="definition", cascade="all, delete-orphan")
     sessions = relationship("AssessmentSession", back_populates="definition")
+
 
 
 class AssessmentQuestion(Base):
@@ -83,6 +89,8 @@ class AssessmentSession(Base):
     profile_id = Column(Integer, ForeignKey("profiles.id", ondelete="SET NULL"), nullable=True, index=True)
     assessment_definition_id = Column(Integer, ForeignKey("assessment_definitions.id", ondelete="CASCADE"), nullable=True, index=True)
     assessment_type = Column(String(30), nullable=False, index=True)  # "MBTI", "DISC", "BIG_FIVE"
+    assessment_version = Column(String(20), default="1.0", nullable=False)
+    progress_index = Column(Integer, default=0, nullable=False)
     status = Column(String(20), default="IN_PROGRESS", nullable=False)  # "NOT_STARTED", "IN_PROGRESS", "COMPLETED", "ABANDONED"
     started_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
@@ -110,12 +118,16 @@ class AssessmentResponse(Base):
     session_id = Column(String(36), ForeignKey("assessment_sessions.id", ondelete="CASCADE"), nullable=False, index=True)
     question_id = Column(String(50), nullable=False, index=True)
     dimension = Column(String(50), nullable=False)
-    response_value = Column(Integer, nullable=False)
+    response_value = Column(Integer, nullable=False, default=3)
+    selected_value = Column(Integer, nullable=True, default=3)
     answered_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
-    # Alias
-    selected_value = synonym("response_value")
+    def __init__(self, **kwargs):
+        val = kwargs.get("response_value", kwargs.get("selected_value", 3))
+        kwargs["response_value"] = val
+        kwargs["selected_value"] = val
+        super().__init__(**kwargs)
 
     __table_args__ = (
         # Mandatory constraint from Section 25: prevents duplicate responses for the same question per session
@@ -135,6 +147,7 @@ class AssessmentResult(Base):
     result_code = Column(String(50), nullable=False)
     result_title = Column(String(120), nullable=False)
     result_version = Column(String(20), default="1.0", nullable=False)
+    is_public = Column(Boolean, default=True, nullable=False, index=True)
     scores_json = Column(Text, nullable=False)
     soft_skills_json = Column(Text, default="[]", nullable=False)
     strengths_json = Column(Text, default="[]", nullable=False)
@@ -157,15 +170,28 @@ class PersonalityTraitScore(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     result_id = Column(Integer, ForeignKey("assessment_results.id", ondelete="CASCADE"), nullable=False, index=True)
-    trait_code = Column(String(80), nullable=False, index=True)
-    score = Column(Float, nullable=False)
-    normalized_score = Column(Float, nullable=False)
+    trait_code = Column(String(80), nullable=False, default="", index=True)
+    score = Column(Float, nullable=False, default=0.0)
+    normalized_score = Column(Float, nullable=False, default=0.0)
+    trait_name = Column(String(80), nullable=True)
+    score_value = Column(Float, nullable=True)
+    percentage = Column(Float, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
 
-    # Aliases
-    trait_name = synonym("trait_code")
-    score_value = synonym("score")
-    percentage = synonym("normalized_score")
+    def __init__(self, **kwargs):
+        tname = kwargs.get("trait_code", kwargs.get("trait_name", ""))
+        kwargs["trait_code"] = tname
+        kwargs["trait_name"] = tname
+
+        s = kwargs.get("score", kwargs.get("score_value", 0.0))
+        kwargs["score"] = s
+        kwargs["score_value"] = s
+
+        p = kwargs.get("normalized_score", kwargs.get("percentage", 0.0))
+        kwargs["normalized_score"] = p
+        kwargs["percentage"] = p
+
+        super().__init__(**kwargs)
 
     result = relationship("AssessmentResult", back_populates="trait_scores")
 
@@ -193,12 +219,17 @@ class StrengthRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     profile_id = Column(Integer, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=True, index=True)
     result_id = Column(Integer, ForeignKey("assessment_results.id", ondelete="CASCADE"), nullable=True, index=True)
-    title = Column(String(255), nullable=False)
+    title = Column(String(255), nullable=False, default="")
+    description = Column(String(255), nullable=True)
     source = Column(String(50), default="ASSESSMENT", nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
-    description = synonym("title")
+    def __init__(self, **kwargs):
+        val = kwargs.get("title", kwargs.get("description", ""))
+        kwargs["title"] = val
+        kwargs["description"] = val
+        super().__init__(**kwargs)
 
     profile = relationship("Profile", back_populates="strengths")
     result = relationship("AssessmentResult", back_populates="strengths")
@@ -210,12 +241,17 @@ class WeaknessRecord(Base):
     id = Column(Integer, primary_key=True, index=True)
     profile_id = Column(Integer, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=True, index=True)
     result_id = Column(Integer, ForeignKey("assessment_results.id", ondelete="CASCADE"), nullable=True, index=True)
-    title = Column(String(255), nullable=False)
+    title = Column(String(255), nullable=False, default="")
+    description = Column(String(255), nullable=True)
     source = Column(String(50), default="ASSESSMENT", nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
 
-    description = synonym("title")
+    def __init__(self, **kwargs):
+        val = kwargs.get("title", kwargs.get("description", ""))
+        kwargs["title"] = val
+        kwargs["description"] = val
+        super().__init__(**kwargs)
 
     profile = relationship("Profile", back_populates="weaknesses")
     result = relationship("AssessmentResult", back_populates="weaknesses")

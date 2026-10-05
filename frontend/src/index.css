@@ -3,6 +3,8 @@
 @layer base {
   body {
     font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    background-color: #120601;
+    color: #fef3c7;
   }
   
   code, pre, .font-mono {
@@ -10,39 +12,55 @@
   }
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - Warm Bhagwa / Saffron Theme */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #090d16;
+  background: #140702;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #9a3412;
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #334155;
+  background: #ea580c;
 }
 
-/* Glassmorphism utilities */
+/* Rich Bhagwa Atmospheric Backdrop */
+.bhagwa-bg {
+  background-color: #120601;
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(249, 115, 22, 0.28) 0px, transparent 48%),
+    radial-gradient(at 100% 0%, rgba(245, 158, 11, 0.24) 0px, transparent 46%),
+    radial-gradient(at 50% 45%, rgba(194, 65, 12, 0.18) 0px, transparent 60%),
+    radial-gradient(at 100% 100%, rgba(234, 88, 12, 0.28) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(217, 72, 15, 0.22) 0px, transparent 50%);
+  background-attachment: fixed;
+}
+
+/* Glassmorphism utilities - Warm Bhagwa Undertones */
 .glass-panel {
-  background: rgba(15, 23, 42, 0.75);
+  background: rgba(26, 10, 4, 0.84);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(251, 146, 60, 0.20);
 }
 
 .glass-card {
-  background: rgba(30, 41, 59, 0.45);
+  background: rgba(38, 15, 6, 0.60);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(251, 146, 60, 0.16);
+}
+
+.glow-bhagwa {
+  box-shadow: 0 0 32px -5px rgba(249, 115, 22, 0.40);
 }
 
 .glow-indigo {
-  box-shadow: 0 0 25px -5px rgba(99, 102, 241, 0.25);
+  box-shadow: 0 0 25px -5px rgba(249, 115, 22, 0.35);
 }
 
 .glow-emerald {
@@ -50,5 +68,5 @@
 }
 
 .glow-amber {
-  box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 25px -5px rgba(245, 158, 11, 0.35);
 }

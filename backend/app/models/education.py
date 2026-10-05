@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, CheckConstraint
+from sqlalchemy import Column, Integer, String, Boolean, DateTime, ForeignKey, CheckConstraint, Float
 from sqlalchemy.orm import relationship, validates, synonym
 from app.core.database import Base
 from app.utils.date_helpers import parse_month_year
@@ -8,6 +8,7 @@ VALID_EDUCATION_LEVELS = (
     "Doctorate",
     "Post Graduate",
     "Graduate",
+    "Diploma",
     "Undergraduate",
     "High School",
     "Matriculation"
@@ -20,8 +21,12 @@ class Education(Base):
     id = Column(Integer, primary_key=True, index=True)
     profile_id = Column(Integer, ForeignKey("profiles.id", ondelete="CASCADE"), nullable=True, index=True)
     level = Column(String(50), nullable=False)
-    stream = Column(String(120), nullable=False)
+    stream = Column(String(120), nullable=True)
     institution = Column(String(150), nullable=True)
+
+    # Performance / Grade metrics
+    score_type = Column(String(20), nullable=True)
+    score_value = Column(Float, nullable=True)
 
     # Normalized numeric period fields
     start_month = Column(Integer, nullable=True)

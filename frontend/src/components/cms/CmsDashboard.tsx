@@ -17,6 +17,7 @@ import {
   Save,
   CheckCircle2,
   AlertCircle,
+  AlertTriangle,
   Clock,
   ArrowUpDown,
   RotateCcw,
@@ -34,7 +35,8 @@ import {
   X,
   ChevronDown,
   ChevronUp,
-  RefreshCw
+  RefreshCw,
+  FolderCode
 } from 'lucide-react';
 import {
   Profile,
@@ -42,17 +44,30 @@ import {
   Education,
   Experience,
   Skill,
+  Project,
   HobbyInterest,
   PersonalitySynthesis,
   DashboardStats,
   ContentRevision,
   AuditEvent,
-  AssessmentResult
+  AssessmentResult,
+  AssessmentDefinition,
+  AssessmentStats
 } from '../../types';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { PinModal } from '../common/PinModal';
 import { MonthYearPicker } from '../common/MonthYearPicker';
+import { SkillRatingSelector } from '../skills/SkillRatingSelector';
+import { SkillCard } from '../skills/SkillCard';
+import { SkillCategorySelector } from '../skills/SkillCategorySelector';
+import { SkillDomainSelector } from '../skills/SkillDomainSelector';
+import { CmsProjectsSection } from './CmsProjectsSection';
+import {
+  calculateExperienceDuration,
+  calculateOverallExperience,
+  sortExperiencesByTimelineDesc
+} from '../../utils/dateHelpers';
 
 interface CmsDashboardProps {
   onRefreshAll: () => void;
@@ -65,6 +80,7 @@ export type CmsTab =
   | 'education'
   | 'experience'
   | 'skills'
+  | 'projects'
   | 'hobbies'
   | 'interests'
   | 'personality'
@@ -94,14 +110,17 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
   const [educations, setEducations] = useState<Education[]>([]);
   const [experiences, setExperiences] = useState<Experience[]>([]);
   const [skills, setSkills] = useState<Skill[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [hobbiesInterests, setHobbiesInterests] = useState<HobbyInterest[]>([]);
   const [synthesis, setSynthesis] = useState<PersonalitySynthesis | null>(null);
   const [assessmentHistory, setAssessmentHistory] = useState<AssessmentResult[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [revisions, setRevisions] = useState<ContentRevision[]>([]);
+  const [assessmentDefinitions, setAssessmentDefinitions] = useState<AssessmentDefinition[]>([]);
+  const [assessmentStats, setAssessmentStats] = useState<AssessmentStats | null>(null);
 
   // UI States
-  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [message, setMessage] = useState<{ type: 'success' | 'error' | 'warning'; text: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [selectedRevision, setSelectedRevision] = useState<ContentRevision | null>(null);
   const [auditFilter, setAuditFilter] = useState<string>('ALL');
@@ -123,6 +142,7 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
     email: '',
     label: 'Primary',
     is_primary: false,
+    is_public: true,
     display_order: 0
   });
   const [editingEmailId, setEditingEmailId] = useState<number | null>(null);
@@ -136,6 +156,8 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
     starting_month_year: string;
     ending_month_year: string;
     currently_studying: boolean;
+    score_type: 'Percentage' | 'CGPA 10' | 'CGPA 5' | '';
+    score_value: string;
     ordering: number;
   }>({
     level: 'Graduate',
@@ -144,6 +166,8 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
     starting_month_year: 'Jan 2020',
     ending_month_year: 'Jun 2024',
     currently_studying: false,
+    score_type: '',
+    score_value: '',
     ordering: 0
   });
   const [editingEduId, setEditingEduId] = useState<number | null>(null);
@@ -175,13 +199,23 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
   const [skillForm, setSkillForm] = useState<{
     id?: number;
     name: string;
+    domain: string;
+    domains: string[];
     category: string;
+    categories: string[];
+    description: string;
     rating: number;
+    visibility: boolean;
     ordering: number;
   }>({
     name: '',
+    domain: '',
+    domains: [],
     category: 'Technical',
+    categories: ['Technical'],
+    description: '',
     rating: 4,
+    visibility: true,
     ordering: 0
   });
   const [editingSkillId, setEditingSkillId] = useState<number | null>(null);
@@ -212,18 +246,21 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
 
   const loadAllCmsData = async () => {
     try {
-      const [st, prof, emails, edus, exps, sks, his, syn, hist, evs, revs] = await Promise.all([
+      const [st, prof, emails, edus, exps, sks, projs, his, syn, hist, evs, revs, defs, aStats] = await Promise.all([
         api.getDashboardStats().catch(() => null),
         api.getProfile().catch(() => null),
         api.getProfileEmails().catch(() => []),
         api.getEducation().catch(() => []),
         api.getExperience().catch(() => []),
         api.getSkills(true).catch(() => []),
+        api.getProjects(true).catch(() => []),
         api.getHobbiesInterests().catch(() => []),
         api.getPersonalitySynthesis().catch(() => null),
         api.getAssessmentHistory().catch(() => []),
         api.getAuditEvents(50).catch(() => []),
-        api.getContentRevisions(50).catch(() => [])
+        api.getContentRevisions(50).catch(() => []),
+        api.getAssessmentDefinitions().catch(() => []),
+        api.getAssessmentStats().catch(() => null)
       ]);
 
       if (st) setStats(st);
@@ -237,9 +274,14 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
         });
       }
       setProfileEmails(emails);
-      setEducations(edus);
-      setExperiences(exps);
-      setSkills(sks);
+      const sortedSks = [...(sks || [])].sort((a, b) => {
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        const orderA = a.ordering ?? a.display_order ?? 0;
+        const orderB = b.ordering ?? b.display_order ?? 0;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.name.localeCompare(b.name);
+      });
+      setSkills(sortedSks);
       setHobbiesInterests(his);
       if (syn) {
         setSynthesis(syn);
@@ -247,14 +289,16 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
       setAssessmentHistory(hist);
       setAuditEvents(evs);
       setRevisions(revs);
+      setAssessmentDefinitions(defs);
+      if (aStats) setAssessmentStats(aStats);
     } catch (e: any) {
       console.error('Failed to load CMS data', e);
     }
   };
 
-  const notify = (type: 'success' | 'error', text: string) => {
+  const notify = (type: 'success' | 'error' | 'warning', text: string) => {
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 4000);
+    setTimeout(() => setMessage(null), type === 'warning' ? 7000 : 4000);
   };
 
   // Safe executor checking for active PIN session
@@ -323,7 +367,12 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
           about: profileForm.about.trim() || null
         });
         setProfile(updated);
-        notify('success', 'Profile coordinates updated successfully.');
+        if (updated.assessments_reset) {
+          localStorage.removeItem('existence_saved_session');
+          notify('warning', 'Admin contact details (mobile / LinkedIn / email) changed. In accordance with policy, all assessment results have been reset and you must retake all assessments.');
+        } else {
+          notify('success', 'Profile coordinates updated successfully.');
+        }
         onRefreshAll();
         loadAllCmsData();
       } finally {
@@ -342,25 +391,32 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
     executeWithPin(async () => {
       setLoading(true);
       try {
+        let emailRes: ProfileEmail;
         if (editingEmailId) {
-          await api.updateProfileEmail(editingEmailId, {
+          emailRes = await api.updateProfileEmail(editingEmailId, {
             email: emailForm.email.trim(),
             label: emailForm.label.trim(),
             is_primary: emailForm.is_primary,
+            is_public: emailForm.is_public,
             display_order: Number(emailForm.display_order)
           });
-          notify('success', 'Profile email updated.');
         } else {
-          await api.addProfileEmail({
+          emailRes = await api.addProfileEmail({
             email: emailForm.email.trim(),
             label: emailForm.label.trim(),
             is_primary: emailForm.is_primary,
+            is_public: emailForm.is_public,
             display_order: Number(emailForm.display_order)
           });
-          notify('success', 'New profile email registered.');
+        }
+        if (emailRes?.assessments_reset) {
+          localStorage.removeItem('existence_saved_session');
+          notify('warning', 'Admin email changed. All assessment results have been reset and must be retaken.');
+        } else {
+          notify('success', editingEmailId ? 'Profile email updated.' : 'New profile email registered.');
         }
         setEditingEmailId(null);
-        setEmailForm({ email: '', label: 'Personal', is_primary: false, display_order: 0 });
+        setEmailForm({ email: '', label: 'Personal', is_primary: false, is_public: true, display_order: 0 });
         loadAllCmsData();
         onRefreshAll();
       } finally {
@@ -372,8 +428,13 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
   const handleDeleteEmail = (id: number, emailAddr: string) => {
     if (!confirm(`Are you sure you want to delete ${emailAddr}?`)) return;
     executeWithPin(async () => {
-      await api.deleteProfileEmail(id);
-      notify('success', `Deleted ${emailAddr}.`);
+      const res: any = await api.deleteProfileEmail(id);
+      if (res?.assessments_reset) {
+        localStorage.removeItem('existence_saved_session');
+        notify('warning', `Deleted ${emailAddr}. Admin email changed: all assessment results have been reset and must be retaken.`);
+      } else {
+        notify('success', `Deleted ${emailAddr}.`);
+      }
       loadAllCmsData();
       onRefreshAll();
     });
@@ -381,8 +442,13 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
 
   const handleSetPrimaryEmail = (emailItem: ProfileEmail) => {
     executeWithPin(async () => {
-      await api.updateProfileEmail(emailItem.id, { is_primary: true });
-      notify('success', `${emailItem.email} set as primary.`);
+      const res: any = await api.setPrimaryEmail(emailItem.id);
+      if (res?.assessments_reset) {
+        localStorage.removeItem('existence_saved_session');
+        notify('warning', `${emailItem.email} set as primary. Admin primary email changed: all assessment results have been reset and must be retaken.`);
+      } else {
+        notify('success', `${emailItem.email} set as primary.`);
+      }
       loadAllCmsData();
       onRefreshAll();
     });
@@ -390,43 +456,90 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
 
   // 3. Education Actions
   const handleSaveEducation = () => {
-    if (!eduForm.stream || !eduForm.stream.trim()) {
+    const isStreamLocked = eduForm.level === 'High School' || eduForm.level === 'Matriculation';
+    if (!isStreamLocked && (!eduForm.stream || !eduForm.stream.trim())) {
       notify('error', 'Stream / Field of study is required.');
       return;
     }
     const startStr = eduForm.starting_month_year?.trim() || 'Jan 2020';
     let endStr: string | null = eduForm.ending_month_year?.trim() || null;
+    let scoreTypeVal: 'Percentage' | 'CGPA 10' | 'CGPA 5' | null = null;
+    let scoreNumVal: number | null = null;
+
     if (eduForm.currently_studying) {
       endStr = null;
-    } else if (!endStr) {
-      notify('error', 'Ending Month & Year is required when not currently studying.');
-      return;
+      scoreTypeVal = null;
+      scoreNumVal = null;
+    } else {
+      if (!endStr) {
+        notify('error', 'Ending Month & Year is required when not currently studying.');
+        return;
+      }
+      const rawType = eduForm.score_type?.trim();
+      const rawVal = eduForm.score_value !== '' && eduForm.score_value !== undefined ? String(eduForm.score_value).trim() : '';
+
+      if (rawType && !rawVal) {
+        notify('error', 'Please enter marks number for the selected score category.');
+        return;
+      }
+      if (!rawType && rawVal) {
+        notify('error', 'Please select a score category (Percentage, CGPA 10, or CGPA 5).');
+        return;
+      }
+      if (rawType && rawVal) {
+        const parsed = parseFloat(rawVal);
+        if (isNaN(parsed)) {
+          notify('error', 'Please enter a valid numeric value for marks.');
+          return;
+        }
+        if (rawVal.includes('.')) {
+          const decDigits = rawVal.split('.')[1];
+          if (decDigits.length > 2) {
+            notify('error', 'Marks number can have at most 2 decimal places.');
+            return;
+          }
+        }
+        if (rawType === 'Percentage') {
+          if (parsed < 0 || parsed > 100) {
+            notify('error', 'Percentage marks must be between 0 and 100.');
+            return;
+          }
+        } else if (rawType === 'CGPA 10') {
+          if (parsed < 0 || parsed > 10) {
+            notify('error', 'CGPA 10 marks must be between 0 and 10.');
+            return;
+          }
+        } else if (rawType === 'CGPA 5') {
+          if (parsed < 0 || parsed > 5) {
+            notify('error', 'CGPA 5 marks must be between 0 and 5.');
+            return;
+          }
+        }
+        scoreTypeVal = rawType as 'Percentage' | 'CGPA 10' | 'CGPA 5';
+        scoreNumVal = Math.round(parsed * 100) / 100;
+      }
     }
 
     executeWithPin(async () => {
       setLoading(true);
       try {
+        const payload = {
+          level: eduForm.level as any,
+          stream: isStreamLocked ? null : (eduForm.stream.trim() || null),
+          institution: eduForm.institution?.trim() || null,
+          starting_month_year: startStr,
+          ending_month_year: endStr,
+          currently_studying: eduForm.currently_studying,
+          score_type: scoreTypeVal,
+          score_value: scoreNumVal,
+          ordering: Number(eduForm.ordering) || 0
+        };
+
         if (editingEduId) {
-          await api.updateEducation(editingEduId, {
-            level: eduForm.level as any,
-            stream: eduForm.stream.trim(),
-            institution: eduForm.institution?.trim() || null,
-            starting_month_year: startStr,
-            ending_month_year: endStr,
-            currently_studying: eduForm.currently_studying,
-            ordering: Number(eduForm.ordering) || 0
-          });
+          await api.updateEducation(editingEduId, payload);
           notify('success', 'Academic record updated successfully.');
         } else {
-          await api.createEducation({
-            level: eduForm.level as any,
-            stream: eduForm.stream.trim(),
-            institution: eduForm.institution?.trim() || null,
-            starting_month_year: startStr,
-            ending_month_year: endStr,
-            currently_studying: eduForm.currently_studying,
-            ordering: Number(eduForm.ordering) || 0
-          });
+          await api.createEducation(payload);
           notify('success', 'Academic record registered successfully.');
         }
         setEditingEduId(null);
@@ -437,6 +550,8 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
           starting_month_year: 'Jan 2020',
           ending_month_year: 'Jun 2024',
           currently_studying: false,
+          score_type: '',
+          score_value: '',
           ordering: 0
         });
         loadAllCmsData();
@@ -542,32 +657,187 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
 
   // 5. Skill Actions
   const handleSaveSkill = () => {
+    const trimmedName = skillForm.name.trim();
+    if (!trimmedName) {
+      notify('error', 'Skill name is required.');
+      return;
+    }
+
+    const finalDomains = skillForm.domains && skillForm.domains.length > 0
+      ? skillForm.domains
+      : (skillForm.domain ? skillForm.domain.split(',').map((d) => d.trim()).filter(Boolean) : []);
+    const domainStr = finalDomains.length > 0 ? finalDomains.join(', ') : undefined;
+    const ratingNum = Math.max(1, Math.min(7, Number(skillForm.rating) || 4));
+
+    const finalCategories = skillForm.categories && skillForm.categories.length > 0
+      ? skillForm.categories
+      : (skillForm.category ? skillForm.category.split(',').map((c) => c.trim()).filter(Boolean) : ['Technical']);
+    const categoryStr = finalCategories.join(', ');
+
+    // Support bulk add if comma-separated names are provided (when creating new skills)
+    if (!editingSkillId && trimmedName.includes(',')) {
+      const names = trimmedName
+        .split(/[,&]/)
+        .map((n) => n.trim())
+        .filter(Boolean);
+
+      if (names.length > 1) {
+        executeWithPin(async () => {
+          setLoading(true);
+          try {
+            let createdCount = 0;
+            for (const singleName of names) {
+              const duplicate = skills.find(
+                (s) => s.name.trim().toLowerCase() === singleName.toLowerCase()
+              );
+              if (!duplicate) {
+                await api.createSkill({
+                  name: singleName,
+                  domain: domainStr,
+                  domains: finalDomains,
+                  category: categoryStr,
+                  categories: finalCategories,
+                  description: skillForm.description.trim() || undefined,
+                  rating: ratingNum,
+                  visibility: skillForm.visibility,
+                  ordering: Number(skillForm.ordering) || 0,
+                  metadata_info: domainStr ? { domain: domainStr, domains: finalDomains } : {}
+                });
+                createdCount++;
+              }
+            }
+            notify('success', `Created ${createdCount} skills under domain "${domainStr || 'General'}".`);
+            setSkillForm({
+              name: '',
+              domain: domainStr || '',
+              domains: finalDomains,
+              category: 'Technical',
+              categories: ['Technical'],
+              description: '',
+              rating: 4,
+              visibility: true,
+              ordering: 0
+            });
+            loadAllCmsData();
+            onRefreshAll();
+          } catch (err: any) {
+            notify('error', err?.message || 'Failed to save skills.');
+          } finally {
+            setLoading(false);
+          }
+        });
+        return;
+      }
+    }
+
+    if (trimmedName.length > 100) {
+      notify('error', 'Skill name cannot exceed 100 characters.');
+      return;
+    }
+
+    // Client-side duplicate check
+    const duplicate = skills.find(
+      (s) => s.id !== editingSkillId && s.name.trim().toLowerCase() === trimmedName.toLowerCase()
+    );
+    if (duplicate) {
+      notify('error', `A skill named "${trimmedName}" already exists.`);
+      return;
+    }
+
     executeWithPin(async () => {
       setLoading(true);
       try {
         if (editingSkillId) {
           await api.updateSkill(editingSkillId, {
-            name: skillForm.name,
-            category: skillForm.category,
-            rating: Number(skillForm.rating),
-            ordering: Number(skillForm.ordering)
+            name: trimmedName,
+            domain: domainStr,
+            domains: finalDomains,
+            category: categoryStr,
+            categories: finalCategories,
+            description: skillForm.description.trim() || undefined,
+            rating: ratingNum,
+            visibility: skillForm.visibility,
+            ordering: Number(skillForm.ordering) || 0,
+            metadata_info: domainStr ? { domain: domainStr, domains: finalDomains } : {}
           });
-          notify('success', 'Skill updated.');
+          notify('success', 'Skill updated successfully.');
         } else {
           await api.createSkill({
-            name: skillForm.name,
-            category: skillForm.category,
-            rating: Number(skillForm.rating),
-            visibility: true,
-            ordering: Number(skillForm.ordering),
-            metadata_info: {}
+            name: trimmedName,
+            domain: domainStr,
+            domains: finalDomains,
+            category: categoryStr,
+            categories: finalCategories,
+            description: skillForm.description.trim() || undefined,
+            rating: ratingNum,
+            visibility: skillForm.visibility,
+            ordering: Number(skillForm.ordering) || 0,
+            metadata_info: domainStr ? { domain: domainStr, domains: finalDomains } : {}
           });
-          notify('success', 'Skill created.');
+          notify('success', 'Skill created successfully.');
         }
         setEditingSkillId(null);
-        setSkillForm({ name: '', category: 'Technical', rating: 4, ordering: 0 });
+        setSkillForm({
+          name: '',
+          domain: domainStr || '',
+          domains: finalDomains,
+          category: 'Technical',
+          categories: ['Technical'],
+          description: '',
+          rating: 4,
+          visibility: true,
+          ordering: 0
+        });
         loadAllCmsData();
         onRefreshAll();
+      } catch (err: any) {
+        notify('error', err?.message || 'Failed to save skill.');
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
+
+  const handleToggleSkillVisibility = (skill: Skill) => {
+    const currentVis = skill.visibility ?? skill.is_visible ?? true;
+    executeWithPin(async () => {
+      setLoading(true);
+      try {
+        await api.patchSkill(skill.id, { visibility: !currentVis });
+        notify('success', `Skill "${skill.name}" is now ${!currentVis ? 'visible' : 'hidden'}.`);
+        loadAllCmsData();
+        onRefreshAll();
+      } catch (err: any) {
+        notify('error', err?.message || 'Failed to toggle visibility.');
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
+
+  const handleMoveSkill = (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= skills.length) return;
+
+    const newSkills = [...skills];
+    const temp = newSkills[index];
+    newSkills[index] = newSkills[targetIndex];
+    newSkills[targetIndex] = temp;
+
+    const reorderPayload = newSkills.map((s, idx) => ({
+      id: s.id,
+      ordering: idx + 1
+    }));
+
+    executeWithPin(async () => {
+      setLoading(true);
+      try {
+        await api.reorderSkills(reorderPayload);
+        notify('success', 'Skills reordered successfully.');
+        loadAllCmsData();
+        onRefreshAll();
+      } catch (err: any) {
+        notify('error', err?.message || 'Failed to reorder skills.');
       } finally {
         setLoading(false);
       }
@@ -577,10 +847,17 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
   const handleDeleteSkill = (id: number) => {
     if (!confirm('Are you sure you want to delete this skill?')) return;
     executeWithPin(async () => {
-      await api.deleteSkill(id);
-      notify('success', 'Skill deleted.');
-      loadAllCmsData();
-      onRefreshAll();
+      setLoading(true);
+      try {
+        await api.deleteSkill(id);
+        notify('success', 'Skill deleted successfully.');
+        loadAllCmsData();
+        onRefreshAll();
+      } catch (err: any) {
+        notify('error', err?.message || 'Failed to delete skill.');
+      } finally {
+        setLoading(false);
+      }
     });
   };
 
@@ -631,9 +908,10 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
   const handleRefreshSynthesis = async () => {
     setLoading(true);
     try {
-      const syn = await api.getPersonalitySynthesis();
+      const syn = await api.refreshPersonalitySynthesis();
       setSynthesis(syn);
-      notify('success', 'Personality synthesis refreshed from assessment tests.');
+      const testCount = syn.assessments_completed?.length || 0;
+      notify('success', `Personality synthesis re-evaluated on the basis of ${testCount} completed assessment${testCount !== 1 ? 's' : ''}.`);
       loadAllCmsData();
       onRefreshAll();
     } catch (err: any) {
@@ -642,6 +920,60 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
       setLoading(false);
     }
   };
+
+  // 7b. Toggle Assessment Result Visibility
+  const handleToggleResultVisibility = (resultId: number, currentPublic: boolean) => {
+    executeWithPin(async () => {
+      setLoading(true);
+      try {
+        await api.toggleResultVisibility(resultId, !currentPublic);
+        notify('success', `Result visibility updated to ${!currentPublic ? 'Public' : 'Private'}`);
+        loadAllCmsData();
+        onRefreshAll();
+      } catch (err: any) {
+        notify('error', err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
+
+  // 7c. Delete Assessment Result
+  const handleDeleteAssessmentResult = (resultId: number) => {
+    if (!confirm('Are you sure you want to delete this completed assessment record? This will purge underlying responses and recalculate synthesis. PIN verification is required.')) return;
+    executeWithPin(async () => {
+      setLoading(true);
+      try {
+        await api.deleteAssessmentResult(resultId);
+        notify('success', 'Assessment result deleted and synthesis refreshed.');
+        loadAllCmsData();
+        onRefreshAll();
+      } catch (err: any) {
+        notify('error', err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
+
+  // 7d. Toggle Definition Status
+  const handleToggleDefinitionStatus = (defId: number, currentStatus: string) => {
+    const nextStatus = currentStatus === 'PUBLISHED' ? 'ARCHIVED' : 'PUBLISHED';
+    executeWithPin(async () => {
+      setLoading(true);
+      try {
+        await api.updateDefinitionStatus(defId, nextStatus);
+        notify('success', `Assessment definition status updated to ${nextStatus}.`);
+        loadAllCmsData();
+        onRefreshAll();
+      } catch (err: any) {
+        notify('error', err.message);
+      } finally {
+        setLoading(false);
+      }
+    });
+  };
+
 
   // 8. Restore Revision Action
   const handleRestoreRevision = (rev: ContentRevision) => {
@@ -731,11 +1063,15 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
           className={`flex items-center gap-2.5 p-4 rounded-2xl text-xs font-medium border animate-fadeIn ${
             message.type === 'success'
               ? 'bg-emerald-950/40 border-emerald-800 text-emerald-200'
+              : message.type === 'warning'
+              ? 'bg-amber-950/40 border-amber-800 text-amber-200'
               : 'bg-rose-950/40 border-rose-800 text-rose-200'
           }`}
         >
           {message.type === 'success' ? (
             <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+          ) : message.type === 'warning' ? (
+            <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
           ) : (
             <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
           )}
@@ -743,7 +1079,7 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
         </div>
       )}
 
-      {/* CMS Navigation Tabs (11 Tabs) */}
+      {/* CMS Navigation Tabs (12 Tabs) */}
       <div className="flex items-center gap-1 bg-slate-900/90 p-1.5 rounded-2xl border border-slate-800 overflow-x-auto scrollbar-none">
         {[
           { id: 'stats', label: 'Dashboard', icon: LayoutDashboard },
@@ -751,6 +1087,7 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
           { id: 'education', label: 'Education', icon: GraduationCap },
           { id: 'experience', label: 'Experience', icon: Briefcase },
           { id: 'skills', label: 'Skills (7-L)', icon: Sparkles },
+          { id: 'projects', label: 'Projects', icon: FolderCode },
           { id: 'hobbies', label: 'Hobbies', icon: Heart },
           { id: 'interests', label: 'Interests', icon: Compass },
           { id: 'personality', label: 'Personality', icon: Brain },
@@ -780,7 +1117,7 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
       {/* 1. DASHBOARD OVERVIEW */}
       {activeTab === 'stats' && stats && (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-4">
             <div className="glass-card p-4 rounded-2xl border border-slate-800">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Profile</span>
               <p className={`text-base font-bold mt-1 ${stats.profile_configured ? 'text-emerald-400' : 'text-amber-400'}`}>
@@ -798,6 +1135,10 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
             <div className="glass-card p-4 rounded-2xl border border-slate-800">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Skills</span>
               <p className="text-lg font-bold text-white mt-1 font-mono">{stats.skills_count}</p>
+            </div>
+            <div className="glass-card p-4 rounded-2xl border border-slate-800">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Projects</span>
+              <p className="text-lg font-bold text-white mt-1 font-mono">{stats.projects_count ?? projects.length}</p>
             </div>
             <div className="glass-card p-4 rounded-2xl border border-slate-800">
               <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Hobbies</span>
@@ -918,6 +1259,15 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
             </div>
 
             <div className="space-y-4">
+              {/* Admin Assessment Integrity Rule Alert */}
+              <div className="p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-3">
+                <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-amber-200/90 leading-relaxed">
+                  <strong className="text-amber-300 font-semibold block mb-0.5">Admin Assessment Integrity Rule</strong>
+                  All psychometric assessment tests (MBTI, DISC, Big Five — 75 items each) are strictly calibrated for the platform administrator. If your <strong>Email ID</strong>, <strong>Mobile number</strong>, or <strong>LinkedIn account</strong> is changed, all assessment test results are automatically invalidated and reset, and you must take all assessment tests again.
+                </div>
+              </div>
+
               <div>
                 <label className="block text-xs font-medium text-slate-300 mb-1.5">Full Name</label>
                 <input
@@ -971,6 +1321,14 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
               <p className="text-xs text-slate-400">Add, edit, or designate primary addresses for this profile.</p>
             </div>
 
+            {/* Email Assessment Notice */}
+            <div className="p-3.5 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-start gap-2.5">
+              <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-200/90 leading-relaxed">
+                <strong>Admin Notice:</strong> Adding, updating, deleting, or changing the primary email address resets all admin psychometric test results, requiring all assessments to be taken again.
+              </p>
+            </div>
+
             {/* Email Form */}
             <form onSubmit={handleSaveEmail} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
               <h3 className="text-xs font-bold text-slate-300 uppercase tracking-wider">
@@ -1000,18 +1358,32 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-2">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="is_primary"
-                    checked={emailForm.is_primary}
-                    onChange={(e) => setEmailForm({ ...emailForm, is_primary: e.target.checked })}
-                    className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-800"
-                  />
-                  <label htmlFor="is_primary" className="text-xs text-slate-300 cursor-pointer">
-                    Set as Primary Contact Email
-                  </label>
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="is_primary"
+                      checked={emailForm.is_primary}
+                      onChange={(e) => setEmailForm({ ...emailForm, is_primary: e.target.checked })}
+                      className="w-4 h-4 rounded text-indigo-600 bg-slate-900 border-slate-800"
+                    />
+                    <label htmlFor="is_primary" className="text-xs text-slate-300 cursor-pointer">
+                      Primary Contact Email
+                    </label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="is_public"
+                      checked={emailForm.is_public}
+                      onChange={(e) => setEmailForm({ ...emailForm, is_public: e.target.checked })}
+                      className="w-4 h-4 rounded text-emerald-600 bg-slate-900 border-slate-800"
+                    />
+                    <label htmlFor="is_public" className="text-xs text-slate-300 cursor-pointer">
+                      Public Portfolio Visible
+                    </label>
+                  </div>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -1020,7 +1392,7 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                       type="button"
                       onClick={() => {
                         setEditingEmailId(null);
-                        setEmailForm({ email: '', label: 'Personal', is_primary: false, display_order: 0 });
+                        setEmailForm({ email: '', label: 'Personal', is_primary: false, is_public: true, display_order: 0 });
                       }}
                       className="px-3 py-1.5 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs cursor-pointer"
                     >
@@ -1048,13 +1420,16 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                   className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 flex items-center justify-between"
                 >
                   <div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <span className="text-sm font-bold text-white font-mono">{item.email}</span>
                       {item.is_primary && (
                         <span className="px-2 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/30 text-[10px] font-semibold text-indigo-300">
                           Primary
                         </span>
                       )}
+                      <span className={`px-2 py-0.5 rounded-md text-[10px] font-semibold ${item.is_public ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-900 text-slate-500 border border-slate-800'}`}>
+                        {item.is_public ? 'Public' : 'Private'}
+                      </span>
                       <span className="px-2 py-0.5 rounded-md bg-slate-900 text-[10px] text-slate-400 font-mono">
                         {item.label}
                       </span>
@@ -1077,6 +1452,7 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                           email: item.email,
                           label: item.label,
                           is_primary: item.is_primary,
+                          is_public: item.is_public ?? true,
                           display_order: item.display_order
                         });
                       }}
@@ -1115,26 +1491,48 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                 <label className="block text-xs font-medium text-slate-300 mb-1">Level</label>
                 <select
                   value={eduForm.level}
-                  onChange={(e) => setEduForm({ ...eduForm, level: e.target.value })}
+                  onChange={(e) => {
+                    const newLevel = e.target.value;
+                    const locked = newLevel === 'High School' || newLevel === 'Matriculation';
+                    setEduForm({
+                      ...eduForm,
+                      level: newLevel,
+                      stream: locked ? '' : eduForm.stream
+                    });
+                  }}
                   className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500"
                 >
                   <option value="Doctorate">Doctorate</option>
                   <option value="Post Graduate">Post Graduate</option>
                   <option value="Graduate">Graduate</option>
-                  <option value="Undergraduate">Undergraduate</option>
+                  <option value="Diploma">Diploma</option>
                   <option value="High School">High School</option>
                   <option value="Matriculation">Matriculation</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Stream / Field</label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-slate-300">Stream / Field</label>
+                  {(eduForm.level === 'High School' || eduForm.level === 'Matriculation') && (
+                    <span className="text-[10px] text-amber-400 font-semibold">Locked ({eduForm.level})</span>
+                  )}
+                </div>
                 <input
                   type="text"
-                  value={eduForm.stream}
+                  value={eduForm.level === 'High School' || eduForm.level === 'Matriculation' ? '' : eduForm.stream}
                   onChange={(e) => setEduForm({ ...eduForm, stream: e.target.value })}
-                  placeholder="e.g. Computer Science & AI"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500"
+                  disabled={eduForm.level === 'High School' || eduForm.level === 'Matriculation'}
+                  placeholder={
+                    eduForm.level === 'High School' || eduForm.level === 'Matriculation'
+                      ? 'Not applicable for High School / Matriculation (Locked)'
+                      : 'e.g. Computer Science & AI'
+                  }
+                  className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs outline-none transition-all ${
+                    eduForm.level === 'High School' || eduForm.level === 'Matriculation'
+                      ? 'border-slate-800/50 text-slate-500 bg-slate-900/40 cursor-not-allowed'
+                      : 'border-slate-800 text-white focus:border-indigo-500'
+                  }`}
                 />
               </div>
 
@@ -1176,12 +1574,97 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                   type="checkbox"
                   id="edu_currently_studying"
                   checked={eduForm.currently_studying}
-                  onChange={(e) => setEduForm({ ...eduForm, currently_studying: e.target.checked })}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setEduForm({
+                      ...eduForm,
+                      currently_studying: checked,
+                      ...(checked ? { score_type: '', score_value: '' } : {})
+                    });
+                  }}
                   className="w-4 h-4 rounded text-indigo-600 bg-slate-950 border-slate-800 cursor-pointer"
                 />
                 <label htmlFor="edu_currently_studying" className="text-xs text-slate-300 cursor-pointer font-medium">
-                  Currently Studying (In Progress)
+                  Currently Studying (In Progress — Ending Date & CGPA/Percentage Locked)
                 </label>
+              </div>
+
+              {/* 2 BOXES: CGPA / Percentage Category & Marks Number */}
+              <div className="sm:col-span-2 lg:col-span-3 grid grid-cols-1 sm:grid-cols-2 gap-4 pt-3 border-t border-slate-800/80">
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-slate-300">
+                      Score Category (Box 1)
+                    </label>
+                    {eduForm.currently_studying && (
+                      <span className="text-[10px] text-amber-400 font-semibold">Locked (Currently Studying)</span>
+                    )}
+                  </div>
+                  <select
+                    value={eduForm.currently_studying ? '' : eduForm.score_type}
+                    onChange={(e) => setEduForm({ ...eduForm, score_type: e.target.value as any })}
+                    disabled={eduForm.currently_studying}
+                    className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs outline-none transition-all ${
+                      eduForm.currently_studying
+                        ? 'border-slate-800/50 text-slate-500 bg-slate-900/40 cursor-not-allowed'
+                        : 'border-slate-800 text-white focus:border-indigo-500'
+                    }`}
+                  >
+                    <option value="">None / Not Applicable</option>
+                    <option value="Percentage">Percentage (0 – 100%)</option>
+                    <option value="CGPA 10">CGPA 10 (0 – 10.00)</option>
+                    <option value="CGPA 5">CGPA 5 (0 – 5.00)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-medium text-slate-300">
+                      Marks / Score Number (Box 2)
+                    </label>
+                    {eduForm.currently_studying && (
+                      <span className="text-[10px] text-amber-400 font-semibold">Locked (Currently Studying)</span>
+                    )}
+                  </div>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max={
+                      eduForm.score_type === 'Percentage'
+                        ? '100'
+                        : eduForm.score_type === 'CGPA 10'
+                        ? '10'
+                        : eduForm.score_type === 'CGPA 5'
+                        ? '5'
+                        : '100'
+                    }
+                    value={eduForm.currently_studying ? '' : eduForm.score_value}
+                    onChange={(e) => setEduForm({ ...eduForm, score_value: e.target.value })}
+                    disabled={eduForm.currently_studying || !eduForm.score_type}
+                    placeholder={
+                      eduForm.currently_studying
+                        ? 'Locked while currently studying'
+                        : !eduForm.score_type
+                        ? 'Select a category first'
+                        : eduForm.score_type === 'Percentage'
+                        ? 'e.g. 88.50 (0 to 100)'
+                        : eduForm.score_type === 'CGPA 10'
+                        ? 'e.g. 8.75 (0 to 10)'
+                        : 'e.g. 4.25 (0 to 5)'
+                    }
+                    className={`w-full px-3 py-2 bg-slate-950 border rounded-xl text-xs outline-none transition-all ${
+                      eduForm.currently_studying || !eduForm.score_type
+                        ? 'border-slate-800/50 text-slate-500 bg-slate-900/40 cursor-not-allowed'
+                        : 'border-slate-800 text-white focus:border-indigo-500'
+                    }`}
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {eduForm.score_type === 'Percentage' && 'Enter percentage between 0 and 100 (up to 2 decimal places).'}
+                    {eduForm.score_type === 'CGPA 10' && 'Enter CGPA between 0 and 10.00 (up to 2 decimal places).'}
+                    {eduForm.score_type === 'CGPA 5' && 'Enter CGPA between 0 and 5.00 (up to 2 decimal places).'}
+                  </p>
+                </div>
               </div>
             </div>
 
@@ -1203,6 +1686,8 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                       starting_month_year: '',
                       ending_month_year: '',
                       currently_studying: false,
+                      score_type: '',
+                      score_value: '',
                       ordering: 0
                     });
                   }}
@@ -1216,14 +1701,40 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
 
           {/* Education List */}
           <div className="space-y-3">
-            {educations.map((edu) => (
+            {(() => {
+              const LEVEL_ORDER: Record<string, number> = {
+                'Doctorate': 1,
+                'Post Graduate': 2,
+                'Graduate': 3,
+                'Diploma': 4,
+                'Undergraduate': 4,
+                'High School': 5,
+                'Matriculation': 6
+              };
+              const sorted = [...educations].sort((a, b) => {
+                const orderA = LEVEL_ORDER[a.level] ?? 99;
+                const orderB = LEVEL_ORDER[b.level] ?? 99;
+                if (orderA !== orderB) return orderA - orderB;
+                if (a.ordering !== b.ordering) return a.ordering - b.ordering;
+                return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+              });
+              return sorted.map((edu) => (
               <div
                 key={edu.id}
                 className="glass-card p-4 rounded-2xl border border-slate-800 flex items-center justify-between"
               >
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-purple-400">{edu.level}</span>
-                  <h4 className="text-sm font-bold text-white">{edu.stream}</h4>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] uppercase font-bold text-purple-400">{edu.level}</span>
+                    {edu.score_type && edu.score_value != null && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                        {edu.score_type === 'Percentage'
+                          ? `${edu.score_value}%`
+                          : `${edu.score_value} / ${edu.score_type === 'CGPA 10' ? '10' : '5'} CGPA`}
+                      </span>
+                    )}
+                  </div>
+                  <h4 className="text-sm font-bold text-white">{edu.stream || `${edu.level} Education`}</h4>
                   <p className="text-xs text-slate-400">
                     {edu.institution || 'Unspecified'} • {edu.starting_month_year} –{' '}
                     {edu.currently_studying ? 'Currently Studying' : edu.ending_month_year}
@@ -1235,11 +1746,13 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                       setEditingEduId(edu.id);
                       setEduForm({
                         level: edu.level,
-                        stream: edu.stream,
+                        stream: edu.stream || '',
                         institution: edu.institution || '',
                         starting_month_year: edu.starting_month_year,
                         ending_month_year: edu.ending_month_year || '',
                         currently_studying: edu.currently_studying,
+                        score_type: edu.score_type || '',
+                        score_value: edu.score_value != null ? String(edu.score_value) : '',
                         ordering: edu.ordering
                       });
                     }}
@@ -1257,7 +1770,8 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                   </button>
                 </div>
               </div>
-            ))}
+            ));
+            })()}
             {educations.length === 0 && (
               <p className="text-xs text-slate-500 py-6 text-center">No education records configured yet.</p>
             )}
@@ -1387,55 +1901,102 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
             </div>
           </div>
 
-          {/* Experience List */}
-          <div className="space-y-3">
-            {experiences.map((exp) => (
-              <div
-                key={exp.id}
-                className="glass-card p-4 rounded-2xl border border-slate-800 flex items-center justify-between"
-              >
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-white">{exp.role}</h4>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
-                      {exp.work_mode}
-                    </span>
+          {/* Overall Experience Summary Banner */}
+          {experiences.length > 0 && (() => {
+            const overall = calculateOverallExperience(experiences);
+            return (
+              <div className="p-4 rounded-2xl bg-gradient-to-r from-indigo-950/40 via-purple-950/30 to-slate-900 border border-indigo-500/30 flex items-center justify-between flex-wrap gap-4 shadow-lg">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/40 flex items-center justify-center text-indigo-400 shadow-inner">
+                    <Clock className="w-5 h-5" />
                   </div>
-                  <p className="text-xs text-slate-400 mt-0.5">
-                    {exp.employer} • {exp.location || 'Remote'} • {exp.starting_month_year} –{' '}
-                    {exp.currently_working ? 'Present' : exp.ending_month_year}
-                  </p>
+                  <div>
+                    <span className="text-[10px] font-semibold text-indigo-300 uppercase tracking-wider">
+                      Overall Career Duration
+                    </span>
+                    <p className="text-base font-bold text-white">
+                      {overall.formatted}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setEditingExpId(exp.id);
-                      setExpForm({
-                        role: exp.role,
-                        employer: exp.employer,
-                        work_mode: exp.work_mode,
-                        location: exp.location || '',
-                        starting_month_year: exp.starting_month_year,
-                        ending_month_year: exp.ending_month_year || '',
-                        currently_working: exp.currently_working,
-                        ordering: exp.ordering
-                      });
-                    }}
-                    className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg cursor-pointer"
-                    title="Edit"
-                  >
-                    <Edit2 className="w-4 h-4" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteExperience(exp.id)}
-                    className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg cursor-pointer"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                <div className="flex items-center gap-3 text-xs text-slate-400">
+                  <span className="flex items-center gap-1.5 font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                    {experiences.filter((e) => e.currently_working).length > 0 ? 'Currently Active' : 'Completed Positions'}
+                  </span>
+                  <span>•</span>
+                  <span>{experiences.length} Position{experiences.length === 1 ? '' : 's'} Sorted by Timeline</span>
                 </div>
               </div>
-            ))}
+            );
+          })()}
+
+          {/* Experience List - Sorted Descending by Timeline */}
+          <div className="space-y-3">
+            {sortExperiencesByTimelineDesc(experiences).map((exp) => {
+              const duration = calculateExperienceDuration(
+                exp.starting_month_year,
+                exp.ending_month_year,
+                exp.currently_working
+              );
+              return (
+                <div
+                  key={exp.id}
+                  className="glass-card p-4 rounded-2xl border border-slate-800 flex items-center justify-between transition-all hover:border-slate-700"
+                >
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-sm font-bold text-white">{exp.role}</h4>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-indigo-500/10 border border-indigo-500/20 text-indigo-300">
+                        {exp.work_mode}
+                      </span>
+                      {exp.currently_working && (
+                        <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 flex items-center gap-1">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                          Currently Working
+                        </span>
+                      )}
+                      <span className="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-800/80 border border-slate-700 text-slate-300 flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-indigo-400" />
+                        {duration.formatted}
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">
+                      {exp.employer} • {exp.location || 'Remote'} • {exp.starting_month_year} –{' '}
+                      {exp.currently_working ? 'Present' : exp.ending_month_year}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => {
+                        setEditingExpId(exp.id);
+                        setExpForm({
+                          role: exp.role,
+                          employer: exp.employer,
+                          work_mode: exp.work_mode,
+                          location: exp.location || '',
+                          starting_month_year: exp.starting_month_year,
+                          ending_month_year: exp.ending_month_year || '',
+                          currently_working: exp.currently_working,
+                          ordering: exp.ordering
+                        });
+                      }}
+                      className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg cursor-pointer"
+                      title="Edit"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteExperience(exp.id)}
+                      className="p-2 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg cursor-pointer"
+                      title="Delete"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
             {experiences.length === 0 && (
               <p className="text-xs text-slate-500 py-6 text-center">No experience records configured yet.</p>
             )}
@@ -1443,34 +2004,49 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
         </div>
       )}
 
-      {/* 5. SKILLS TAB (7-LEVEL CALIBRATION) */}
+      {/* 5. SKILLS TAB (7-LEVEL CALIBRATION & MANAGEMENT) */}
       {activeTab === 'skills' && (
         <div className="space-y-6">
-          <div className="glass-panel p-6 rounded-3xl border border-slate-800">
-            <h3 className="text-base font-bold text-white mb-4">
-              {editingSkillId ? 'Edit Skill & 7-Level Rating' : 'Add Skill & 7-Level Rating'}
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="glass-panel p-6 rounded-3xl border border-slate-800 shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-base font-bold text-white flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-indigo-400" />
+                {editingSkillId ? 'Edit Skill & 7-Level Mastery Rating' : 'Add Skill & Calibrate 7-Level Rating'}
+              </h3>
+              <span className="text-xs font-mono text-slate-400">
+                {skills.length} Registered Competencies
+              </span>
+            </div>
+
+            {/* Multi-Domain Selector with Search & Taxonomy across all Engineering, Medical, Business, Legal & Other fields */}
+            <div className="mb-4">
+              <SkillDomainSelector
+                selectedDomains={skillForm.domains && skillForm.domains.length > 0
+                  ? skillForm.domains
+                  : (skillForm.domain ? skillForm.domain.split(',').map((d) => d.trim()).filter(Boolean) : [])}
+                onChange={(doms) => {
+                  setSkillForm({
+                    ...skillForm,
+                    domains: doms,
+                    domain: doms.join(', ')
+                  });
+                }}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Skill Name</label>
+                <label className="block text-xs font-medium text-slate-300 mb-1">Skill Name *</label>
                 <input
                   type="text"
                   value={skillForm.name}
                   onChange={(e) => setSkillForm({ ...skillForm, name: e.target.value })}
-                  placeholder="e.g. Distributed Consensus"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500"
+                  placeholder="e.g. NumPy, SciPy, Pandas, TensorFlow"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-amber-500"
                 />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Category</label>
-                <input
-                  type="text"
-                  value={skillForm.category}
-                  onChange={(e) => setSkillForm({ ...skillForm, category: e.target.value })}
-                  placeholder="e.g. Backend Architecture"
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500"
-                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Tip: Comma-separate names to bulk add under selected domain(s).
+                </p>
               </div>
 
               <div>
@@ -1480,52 +2056,84 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                   min={0}
                   value={skillForm.ordering}
                   onChange={(e) => setSkillForm({ ...skillForm, ordering: Number(e.target.value) })}
-                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500"
+                  className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-amber-500"
                 />
               </div>
             </div>
 
-            {/* 7-Level Rating Selector */}
-            <div className="mt-4 pt-4 border-t border-slate-800 space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-medium text-slate-300">Calibrated Mastery Level (1–7)</label>
-                <span className="text-xs font-bold text-indigo-400 font-mono">
-                  Level {skillForm.rating} — {SKILL_LEVEL_MAP[skillForm.rating] || 'Proficient'}
-                </span>
-              </div>
-              <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-                {[1, 2, 3, 4, 5, 6, 7].map((lvl) => (
-                  <button
-                    key={lvl}
-                    type="button"
-                    onClick={() => setSkillForm({ ...skillForm, rating: lvl })}
-                    className={`py-2 rounded-xl text-xs font-bold transition-all cursor-pointer text-center ${
-                      skillForm.rating === lvl
-                        ? 'bg-indigo-600 text-white ring-2 ring-indigo-400/50 shadow-lg shadow-indigo-600/30'
-                        : 'bg-slate-950 border border-slate-800 text-slate-400 hover:text-white hover:bg-slate-900'
-                    }`}
-                  >
-                    <div>{lvl}</div>
-                    <div className="text-[9px] font-normal truncate mt-0.5 hidden sm:block">
-                      {SKILL_LEVEL_MAP[lvl]}
-                    </div>
-                  </button>
-                ))}
-              </div>
+            {/* Multi-Category Selector across 17 Categories */}
+            <div className="mt-4">
+              <SkillCategorySelector
+                selectedCategories={skillForm.categories}
+                onChange={(cats) =>
+                  setSkillForm({
+                    ...skillForm,
+                    categories: cats,
+                    category: cats.join(', ')
+                  })
+                }
+              />
             </div>
 
-            <div className="flex items-center gap-3 mt-4 pt-4 border-t border-slate-800">
+            {/* Optional Description */}
+            <div className="mt-4">
+              <label className="block text-xs font-medium text-slate-300 mb-1">Description (Optional)</label>
+              <input
+                type="text"
+                value={skillForm.description}
+                onChange={(e) => setSkillForm({ ...skillForm, description: e.target.value })}
+                placeholder="Brief implementation note or context (e.g. Raft, Paxos, Multi-Leader systems)"
+                className="w-full px-3 py-2 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white outline-none focus:border-indigo-500"
+              />
+            </div>
+
+            {/* Visibility Toggle */}
+            <div className="mt-4 flex items-center gap-2">
+              <label className="flex items-center gap-2 cursor-pointer text-xs text-slate-300">
+                <input
+                  type="checkbox"
+                  checked={skillForm.visibility}
+                  onChange={(e) => setSkillForm({ ...skillForm, visibility: e.target.checked })}
+                  className="rounded border-slate-800 bg-slate-950 text-indigo-600 focus:ring-indigo-500"
+                />
+                <span>Visible on Public Profile</span>
+              </label>
+            </div>
+
+            {/* Reusable 7-Level Rating Selector Component */}
+            <div className="mt-5 pt-4 border-t border-slate-800">
+              <SkillRatingSelector
+                value={skillForm.rating}
+                onChange={(lvl) => setSkillForm({ ...skillForm, rating: lvl })}
+                label="Select Calibrated Mastery Rating (1 to 7)"
+              />
+            </div>
+
+            <div className="flex items-center gap-3 mt-5 pt-4 border-t border-slate-800">
               <button
+                type="button"
                 onClick={handleSaveSkill}
-                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-md"
+                className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl text-xs font-semibold transition-all cursor-pointer shadow-md flex items-center gap-1.5"
               >
+                <Save className="w-3.5 h-3.5" />
                 {editingSkillId ? 'Update Skill' : 'Add Skill'}
               </button>
               {editingSkillId && (
                 <button
+                  type="button"
                   onClick={() => {
                     setEditingSkillId(null);
-                    setSkillForm({ name: '', category: 'Technical', rating: 4, ordering: 0 });
+                    setSkillForm({
+                      name: '',
+                      domain: '',
+                      domains: [],
+                      category: 'Technical',
+                      categories: ['Technical'],
+                      description: '',
+                      rating: 4,
+                      visibility: true,
+                      ordering: 0
+                    });
                   }}
                   className="px-4 py-2 border border-slate-800 text-slate-400 hover:text-white rounded-xl text-xs font-medium cursor-pointer"
                 >
@@ -1535,57 +2143,65 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
             </div>
           </div>
 
-          {/* Skill List */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {skills.map((sk) => (
-              <div
+          {/* Skill List with Reusable SkillCards & Reorder Support */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {skills.map((sk, idx) => (
+              <SkillCard
                 key={sk.id}
-                className="glass-card p-4 rounded-2xl border border-slate-800 flex items-center justify-between"
-              >
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-500">{sk.category}</span>
-                  <h4 className="text-sm font-bold text-white">{sk.name}</h4>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 font-mono">
-                      Rating {sk.rating} / 7
-                    </span>
-                    <span className="text-[11px] text-slate-400 font-medium">{sk.level_label}</span>
-                  </div>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <button
-                    onClick={() => {
-                      setEditingSkillId(sk.id);
-                      setSkillForm({
-                        name: sk.name,
-                        category: sk.category,
-                        rating: sk.rating,
-                        ordering: sk.ordering
-                      });
-                    }}
-                    className="p-1.5 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg cursor-pointer"
-                    title="Edit"
-                  >
-                    <Edit2 className="w-3.5 h-3.5" />
-                  </button>
-                  <button
-                    onClick={() => handleDeleteSkill(sk.id)}
-                    className="p-1.5 text-slate-400 hover:text-rose-400 hover:bg-slate-800 rounded-lg cursor-pointer"
-                    title="Delete"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
+                skill={sk}
+                isAdmin={true}
+                onEdit={(item) => {
+                  const itemCats = item.categories && item.categories.length > 0
+                    ? item.categories
+                    : (item.category ? item.category.split(',').map((c) => c.trim()).filter(Boolean) : ['Technical']);
+                  const itemDoms = item.domains && item.domains.length > 0
+                    ? item.domains
+                    : (item.domain ? item.domain.split(',').map((d) => d.trim()).filter(Boolean) : (item.metadata_info?.domain ? String(item.metadata_info.domain).split(',').map((d: string) => d.trim()).filter(Boolean) : []));
+                  setEditingSkillId(item.id);
+                  setSkillForm({
+                    name: item.name,
+                    domain: itemDoms.join(', '),
+                    domains: itemDoms,
+                    category: itemCats.join(', '),
+                    categories: itemCats,
+                    description: item.description || '',
+                    rating: item.rating,
+                    visibility: item.visibility ?? item.is_visible ?? true,
+                    ordering: item.ordering ?? item.display_order ?? 0
+                  });
+                }}
+                onDelete={(id) => handleDeleteSkill(id)}
+                onToggleVisibility={(item) => handleToggleSkillVisibility(item)}
+                onMoveUp={() => handleMoveSkill(idx, 'up')}
+                onMoveDown={() => handleMoveSkill(idx, 'down')}
+                canMoveUp={idx > 0}
+                canMoveDown={idx < skills.length - 1}
+              />
             ))}
             {skills.length === 0 && (
-              <p className="col-span-full text-xs text-slate-500 py-6 text-center">No skills registered yet.</p>
+              <p className="col-span-full text-xs text-slate-500 py-8 text-center glass-panel rounded-2xl border border-slate-800">
+                No skills configured yet. Add your verified technical competencies above.
+              </p>
             )}
           </div>
         </div>
       )}
 
-      {/* 6. HOBBIES TAB */}
+      {/* 6. PROJECTS TAB */}
+      {activeTab === 'projects' && (
+        <CmsProjectsSection
+          projects={projects}
+          skills={skills}
+          onRefresh={() => {
+            loadAllCmsData();
+            onRefreshAll();
+          }}
+          executeWithPin={executeWithPin}
+          notify={notify}
+        />
+      )}
+
+      {/* 7. HOBBIES TAB */}
       {activeTab === 'hobbies' && (
         <div className="space-y-6">
           <div className="glass-panel p-6 rounded-3xl border border-slate-800">
@@ -1800,21 +2416,64 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
         <div className="space-y-6">
           {/* Assessment Results Overview */}
           <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
-            <h3 className="text-sm font-bold text-white flex items-center gap-2">
-              <Brain className="w-4 h-4 text-purple-400" />
-              Completed Assessment Records ({assessmentHistory.length})
-            </h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Brain className="w-4 h-4 text-purple-400" />
+                Completed Assessment Records ({assessmentHistory.length})
+              </h3>
+              <span className="text-[11px] text-slate-400">
+                {assessmentHistory.filter((r) => r.is_public ?? true).length} Public ·{' '}
+                {assessmentHistory.filter((r) => !(r.is_public ?? true)).length} Private
+              </span>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               {assessmentHistory.map((item) => (
-                <div key={item.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2">
+                <div key={item.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-[10px] font-bold text-indigo-400 uppercase">{item.assessment_type}</span>
-                    <span className="text-xs font-bold text-white font-mono">{item.result_code}</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-[10px] font-bold text-indigo-400 uppercase bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                        {item.assessment_type}
+                      </span>
+                      <span className="text-[10px] font-mono text-slate-500">v{item.result_version || '1.0'}</span>
+                    </div>
+                    <span className="text-xs font-bold text-white font-mono bg-slate-900 px-2 py-0.5 rounded border border-slate-800">
+                      {item.result_code}
+                    </span>
                   </div>
-                  <h4 className="text-sm font-bold text-slate-200">{item.result_title}</h4>
-                  <p className="text-xs text-slate-400 line-clamp-2">{item.summary}</p>
-                  <div className="text-[10px] text-slate-500 pt-2 border-t border-slate-900 font-mono">
-                    Completed: {new Date(item.completed_at).toLocaleDateString()}
+
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-200">{item.result_title}</h4>
+                    <p className="text-xs text-slate-400 line-clamp-2 mt-1">{item.summary}</p>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-900 text-[10px]">
+                    <span className="text-slate-500 font-mono">
+                      {new Date(item.completed_at).toLocaleDateString()}
+                    </span>
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        onClick={() => handleToggleResultVisibility(item.id, item.is_public ?? true)}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-all cursor-pointer ${
+                          item.is_public ?? true
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20'
+                            : 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'
+                        }`}
+                        title="Toggle public visibility (PIN required)"
+                      >
+                        {item.is_public ?? true ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                        <span>{item.is_public ?? true ? 'Public' : 'Private'}</span>
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteAssessmentResult(item.id)}
+                        className="p-1 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded transition-colors cursor-pointer"
+                        title="Delete assessment result (PIN required)"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -1825,6 +2484,73 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
               )}
             </div>
           </div>
+
+          {/* Assessment Model Definitions & Version Management */}
+          <div className="glass-panel p-6 rounded-3xl border border-slate-800 space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-white flex items-center gap-2">
+                <Shield className="w-4 h-4 text-indigo-400" />
+                Assessment Model Definitions & Versions ({assessmentDefinitions.length})
+              </h3>
+              <span className="text-[10px] text-slate-400 font-mono">Immutable Version Locking Enabled</span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {assessmentDefinitions.map((def) => (
+                <div key={def.id} className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-white font-mono">{def.code}</span>
+                    <span
+                      className={`text-[9px] font-bold px-2 py-0.5 rounded uppercase tracking-wider ${
+                        def.status === 'PUBLISHED'
+                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-slate-800 text-slate-400'
+                      }`}
+                    >
+                      {def.status}
+                    </span>
+                  </div>
+
+                  <h4 className="text-sm font-semibold text-slate-200">{def.name}</h4>
+                  <p className="text-xs text-slate-400 line-clamp-2">{def.description || def.tagline || 'Standardized psychometric model'}</p>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-900 text-[10px] text-slate-500">
+                    <span>v{def.version} · {def.question_count} Qs</span>
+                    <button
+                      onClick={() => handleToggleDefinitionStatus(def.id, def.status)}
+                      className="px-2 py-0.5 bg-slate-900 hover:bg-slate-800 text-slate-300 rounded border border-slate-800 transition-colors cursor-pointer"
+                      title="Toggle between PUBLISHED and ARCHIVED (PIN required)"
+                    >
+                      {def.status === 'PUBLISHED' ? 'Archive' : 'Publish'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Assessment Telemetry Statistics */}
+          {assessmentStats && (
+            <div className="glass-panel p-5 rounded-3xl border border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-4">
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-900">
+                <span className="text-[10px] uppercase font-bold text-slate-400">Total Attempts</span>
+                <p className="text-lg font-bold text-white font-mono mt-0.5">{assessmentStats.total_sessions}</p>
+              </div>
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-900">
+                <span className="text-[10px] uppercase font-bold text-emerald-400">Completed Sessions</span>
+                <p className="text-lg font-bold text-emerald-400 font-mono mt-0.5">{assessmentStats.completed_sessions}</p>
+              </div>
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-900">
+                <span className="text-[10px] uppercase font-bold text-indigo-400">Public Results</span>
+                <p className="text-lg font-bold text-indigo-400 font-mono mt-0.5">{assessmentStats.public_results}</p>
+              </div>
+              <div className="p-3 bg-slate-950 rounded-2xl border border-slate-900">
+                <span className="text-[10px] uppercase font-bold text-amber-400">Private Results</span>
+                <p className="text-lg font-bold text-amber-400 font-mono mt-0.5">{assessmentStats.private_results}</p>
+              </div>
+            </div>
+          )}
+
 
           {/* Test-Governed Personality Intelligence Overview */}
           <div className="glass-panel p-6 sm:p-8 rounded-3xl border border-slate-800 space-y-6">
@@ -1848,14 +2574,19 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
             </div>
 
             {/* Explanatory Rule Banner */}
-            <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-800/40 text-xs text-indigo-200 space-y-1">
+            <div className="p-4 rounded-2xl bg-indigo-950/30 border border-indigo-800/40 text-xs text-indigo-200 space-y-1.5">
               <span className="font-bold text-indigo-300">Psychological Assessment Invariants:</span>
-              <p className="text-slate-300">
-                • <strong className="text-white">Communication</strong> is the mandatory core strength.
+              <p className="text-slate-300 leading-relaxed">
+                • Strengths and weaknesses are evaluated dynamically based on the number of completed tests:
                 <br />
-                • Exactly <strong className="text-white">14 key strengths</strong> (13 derived + mandatory Communication).
-                <br />
-                • Exactly <strong className="text-white">7 weaknesses</strong> (growth blindspots).
+                <span className="text-indigo-300 font-mono text-[11px] pl-3 block my-0.5">
+                  – 1 test given &rarr; evaluated on the basis of that 1 test
+                  <br />
+                  – 2 tests given &rarr; evaluated on the basis of those 2 tests
+                  <br />
+                  – 3 tests given &rarr; evaluated on the basis of those 3 tests (11 core strengths total)
+                </span>
+                • Exactly <strong className="text-white">11 core strengths</strong> (derived across completed assessments without mandatory Communication override).
                 <br />
                 • Categorized by empirical personality types (MBTI, DISC, Big Five) with <strong className="text-white">no soft skills</strong>.
               </p>
@@ -1896,59 +2627,57 @@ export const CmsDashboard: React.FC<CmsDashboardProps> = ({ onRefreshAll, onOpen
                   </div>
                 </div>
 
-                {/* 14 Key Strengths & 7 Weaknesses Side-by-Side */}
+                {/* Key Strengths & Weaknesses Side-by-Side (Dynamic Evaluation per Completed Tests) */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* 14 Key Strengths (Communication Mandatory) */}
+                  {/* 11 Core Strengths */}
                   <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <Award className="w-4 h-4" />
-                        14 Key Strengths
-                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <Award className="w-4 h-4" />
+                          11 Core Strengths
+                        </span>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Evaluated on {synthesis.assessments_completed.length} completed test{synthesis.assessments_completed.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
                       <span className="text-[11px] font-mono text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                         {synthesis.key_strengths.length} Strengths
                       </span>
                     </div>
 
                     <div className="space-y-2 max-h-80 overflow-y-auto pr-1">
-                      {synthesis.key_strengths.map((str, idx) => {
-                        const isMandatory = str.toLowerCase() === 'communication';
-                        return (
-                          <div
-                            key={idx}
-                            className={`p-2.5 rounded-xl border text-xs flex items-start gap-2.5 transition-colors ${
-                              isMandatory
-                                ? 'bg-emerald-950/40 border-emerald-500/50 text-emerald-200'
-                                : 'bg-slate-900 border-slate-800 text-slate-300'
-                            }`}
-                          >
-                            <span className="font-mono text-[10px] text-slate-500 font-bold shrink-0 mt-0.5">
-                              #{idx + 1}
-                            </span>
-                            <div className="flex-1">
-                              <span>{str}</span>
-                              {isMandatory && (
-                                <span className="ml-2 inline-block px-1.5 py-0.5 rounded text-[9px] font-bold uppercase bg-emerald-500 text-slate-950 tracking-wider">
-                                  Mandatory Core Strength
-                                </span>
-                              )}
-                            </div>
+                      {synthesis.key_strengths.map((str, idx) => (
+                        <div
+                          key={idx}
+                          className="p-2.5 rounded-xl border text-xs flex items-start gap-2.5 transition-colors bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
+                        >
+                          <span className="font-mono text-[10px] text-emerald-400 font-bold shrink-0 mt-0.5">
+                            #{idx + 1}
+                          </span>
+                          <div className="flex-1">
+                            <span>{str}</span>
                           </div>
-                        );
-                      })}
+                        </div>
+                      ))}
                       {synthesis.key_strengths.length === 0 && (
                         <p className="text-xs text-slate-500 py-3 text-center">No strengths synthesized yet.</p>
                       )}
                     </div>
                   </div>
 
-                  {/* 7 Weaknesses / Growth Areas */}
+                  {/* Growth Areas & Weaknesses */}
                   <div className="p-5 rounded-2xl bg-slate-950 border border-slate-800 space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-                        <AlertCircle className="w-4 h-4" />
-                        7 Growth Blindspots / Weaknesses
-                      </span>
+                      <div>
+                        <span className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                          <AlertCircle className="w-4 h-4" />
+                          Growth Blindspots & Weaknesses
+                        </span>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Evaluated on {synthesis.assessments_completed.length} completed test{synthesis.assessments_completed.length !== 1 ? 's' : ''}
+                        </p>
+                      </div>
                       <span className="text-[11px] font-mono text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded border border-amber-500/20">
                         {synthesis.key_weaknesses.length} Weaknesses
                       </span>

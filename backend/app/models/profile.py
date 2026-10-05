@@ -9,6 +9,7 @@ class Profile(Base):
     __tablename__ = "profiles"
 
     id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("admin_users.id", ondelete="CASCADE"), nullable=True, index=True)
     # Strictly nullable/empty by default to honor "DO NOT INVENT PERSONAL CONTENT"
     name = Column(String(120), nullable=True)
     email_ids = Column(Text, default="[]", nullable=False)  # JSON-encoded array of emails (backwards-compatible)
@@ -17,6 +18,9 @@ class Profile(Base):
     about = Column(Text, nullable=True)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)
+
+    # User ownership relationship
+    user = relationship("AdminUser", back_populates="profile")
 
     # Relational child entities with explicit cascade ownership
     emails = relationship("ProfileEmail", back_populates="profile", cascade="all, delete-orphan", order_by="ProfileEmail.display_order")
@@ -28,6 +32,7 @@ class Profile(Base):
     soft_skills = relationship("SoftSkillRecord", back_populates="profile", cascade="all, delete-orphan")
     strengths = relationship("StrengthRecord", back_populates="profile", cascade="all, delete-orphan")
     weaknesses = relationship("WeaknessRecord", back_populates="profile", cascade="all, delete-orphan")
+    projects = relationship("Project", back_populates="profile", cascade="all, delete-orphan", order_by="Project.display_order")
 
 
 class ProfileEmail(Base):
@@ -38,6 +43,7 @@ class ProfileEmail(Base):
     email = Column(String(255), nullable=False, index=True)
     label = Column(String(50), default="Primary", nullable=False)
     is_primary = Column(Boolean, default=False, nullable=False)
+    is_public = Column(Boolean, default=True, nullable=False)
     display_order = Column(Integer, default=0, nullable=False)
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), nullable=False)
     updated_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc), nullable=False)

@@ -1,5 +1,5 @@
 import React from 'react';
-import { User, Briefcase, Sparkles, Brain, LayoutDashboard, LogIn, LogOut, ShieldCheck, ShieldAlert } from 'lucide-react';
+import { User, Briefcase, Sparkles, Brain, LayoutDashboard, LogIn, LogOut, ShieldCheck, ShieldAlert, Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export type TabType = 'profile' | 'journey' | 'skills' | 'personality' | 'cms';
@@ -11,7 +11,8 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenLogin }) => {
-  const { isAuthenticated, user, pinStatus, logout } = useAuth();
+  const { isAuthenticated, user, pinStatus, activePin, lockPin, logout } = useAuth();
+
 
   const navItems: { id: TabType; label: string; icon: React.ElementType }[] = [
     { id: 'profile', label: 'Identity', icon: User },
@@ -72,7 +73,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenL
                 <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 text-[11px] font-medium text-slate-300">
                   {pinStatus?.is_configured ? (
                     <span className="flex items-center gap-1 text-emerald-400">
-                      <ShieldCheck className="w-3.5 h-3.5" /> PIN Active
+                      <ShieldCheck className="w-3.5 h-3.5" /> PIN Configured
                     </span>
                   ) : (
                     <span className="flex items-center gap-1 text-amber-400">
@@ -80,6 +81,16 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenL
                     </span>
                   )}
                 </div>
+                {activePin && (
+                  <button
+                    onClick={() => lockPin()}
+                    title="Lock active PIN session"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[11px] font-medium text-amber-300 hover:bg-amber-500/20 transition-all cursor-pointer"
+                  >
+                    <Lock className="w-3 h-3" /> Lock PIN
+                  </button>
+                )}
+
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium text-slate-300 hidden lg:inline">
                     {user?.username}

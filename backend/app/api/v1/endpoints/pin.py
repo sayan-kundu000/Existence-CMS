@@ -1,7 +1,10 @@
+import uuid
+from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.models.user import User
+from app.core.config import settings
+from app.models.user import User, PinVerificationSession
 from app.api.deps import get_current_user
 from app.schemas.pin import (
     PinSetupRequest,
@@ -14,7 +17,8 @@ from app.services.pin_service import (
     get_pin_status,
     setup_pin,
     verify_user_pin,
-    change_pin
+    change_pin,
+    revoke_pin_verification_sessions
 )
 
 router = APIRouter()
@@ -57,10 +61,6 @@ def verify_pin_action(
     db: Session = Depends(get_db)
 ):
     """Verify security PIN to authorize sensitive editing operations and issue short-lived verification token."""
-    import uuid
-    from datetime import datetime, timedelta, timezone
-    from app.models.user import PinVerificationSession
-
     client_ip = request.client.host if request.client else "unknown"
     verify_user_pin(
         db=db,
@@ -70,9 +70,9 @@ def verify_pin_action(
         ip_address=client_ip
     )
 
-    # Issue a 15-minute verification session token
+    # Issue a short-lived verification session token
     verif_id = str(uuid.uuid4())
-    expires = datetime.now(timezone.utc) + timedelta(minutes=15)
+    expires = datetime.now(timezone.utc) + timedelta(minutes=settings.PIN_SESSION_EXPIRE_MINUTES)
     verif_session = PinVerificationSession(
         admin_user_id=current_user.id,
         verification_identifier=verif_id,
@@ -106,3 +106,20 @@ def modify_pin(
         ip_address=client_ip
     )
     return PinVerifyResponse(success=True, message="Security PIN successfully changed.")
+
+
+@router.post("/lock", response_model=PinVerifyResponse)
+@router.post("/session/revoke", response_model=PinVerifyResponse)
+def lock_pin_session(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Explicitly lock down the active administrative session by invalidating
+    all active short-lived PIN verification session tokens.
+    """
+    revoked = revoke_pin_verification_sessions(db, current_user.id)
+    return PinVerifyResponse(
+        success=True,
+        message=f"PIN authorization locked. {revoked} active verification token(s) revoked."
+    )

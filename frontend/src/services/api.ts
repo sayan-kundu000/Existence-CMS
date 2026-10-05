@@ -4,6 +4,7 @@ import {
   Education,
   Experience,
   Skill,
+  SkillRatingLevel,
   HobbyInterest,
   Hobby,
   Interest,
@@ -11,6 +12,8 @@ import {
   SessionStartResponse,
   AnswerItem,
   AssessmentResult,
+  SessionResumeResponse,
+  ResultComparisonResponse,
   PersonalitySynthesis,
   TokenResponse,
   User,
@@ -18,12 +21,27 @@ import {
   PinVerifyResponse,
   DashboardStats,
   ContentRevision,
-  AuditEvent
+  AuditEvent,
+  ConsolidatedPublicProfile,
+  ProfileCompleteness,
+  AssessmentDefinition,
+  AssessmentQuestion,
+  AssessmentStats,
+  Project,
+  ProjectCreateInput,
+  ProjectUpdateInput,
+  ProjectLink,
+  ProjectTechnology,
+  ProjectSkill,
+  GitHubExtractionResponse,
+  ExtractedProject,
+  GitHubAccountLink,
+  GitHubAccountLinkInput,
+  GitHubSyncResult
 } from '../types';
 
-const API_BASE = import.meta.env.VITE_API_URL
-  ? `${import.meta.env.VITE_API_URL}/api/v1`
-  : '/api/v1';
+const rawApiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+const API_BASE = rawApiUrl ? `${rawApiUrl}/api/v1` : '/api/v1';
 
 class ApiClient {
   private token: string | null = null;
@@ -112,6 +130,9 @@ class ApiClient {
       if (res.status === 401 && endpoint !== '/auth/login' && endpoint !== '/pin/verify') {
         this.setToken(null);
       }
+      if (res.status === 423 || (res.status === 401 && endpoint.startsWith('/pin/'))) {
+        this.setActivePin(null);
+      }
 
       throw new Error(errorMessage);
     }
@@ -120,7 +141,7 @@ class ApiClient {
   }
 
   // --- AUTH ---
-  async login(username: string, password: string):Promise<TokenResponse> {
+  async login(username: string, password: string): Promise<TokenResponse> {
     const data = await this.request<TokenResponse>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ username, password })
@@ -140,10 +161,46 @@ class ApiClient {
     return this.request<User>('/auth/me');
   }
 
-  logout() {
-    this.setToken(null);
-    this.setActivePin(null);
+  async logout(): Promise<void> {
+    try {
+      if (this.token) {
+        await this.request<{ success: boolean; message: string }>('/auth/logout', {
+          method: 'POST'
+        });
+      }
+    } catch {
+      // Clean up client credentials even if network failure occurs
+    } finally {
+      this.setToken(null);
+      this.setActivePin(null);
+    }
   }
+
+  async logoutAll(): Promise<void> {
+    try {
+      if (this.token) {
+        await this.request<{ success: boolean; message: string }>('/auth/logout-all', {
+          method: 'POST'
+        });
+      }
+    } finally {
+      this.setToken(null);
+      this.setActivePin(null);
+    }
+  }
+
+  async lockPin(): Promise<void> {
+    try {
+      if (this.token) {
+        await this.request<PinVerifyResponse>('/pin/lock', {
+          method: 'POST'
+        });
+      }
+    } finally {
+      this.setActivePin(null);
+    }
+  }
+
 
   // --- PIN ---
   async getPinStatus(): Promise<PinStatus> {
@@ -182,6 +239,14 @@ class ApiClient {
     return this.request<Profile>('/profile');
   }
 
+  async getConsolidatedPublicProfile(): Promise<ConsolidatedPublicProfile> {
+    return this.request<ConsolidatedPublicProfile>('/profile/public');
+  }
+
+  async getProfileCompleteness(): Promise<ProfileCompleteness> {
+    return this.request<ProfileCompleteness>('/profile/completeness');
+  }
+
   async updateProfile(profile: Partial<Profile>, pin?: string): Promise<Profile> {
     return this.request<Profile>(
       '/profile',
@@ -199,7 +264,7 @@ class ApiClient {
   }
 
   async addProfileEmail(
-    data: { email: string; label?: string; is_primary?: boolean; display_order?: number },
+    data: { email: string; label?: string; is_primary?: boolean; display_order?: number; is_public?: boolean },
     pin?: string
   ): Promise<ProfileEmail> {
     return this.request<ProfileEmail>(
@@ -223,6 +288,14 @@ class ApiClient {
         method: 'PUT',
         body: JSON.stringify(data)
       },
+      pin
+    );
+  }
+
+  async setPrimaryEmail(id: number, pin?: string): Promise<ProfileEmail> {
+    return this.request<ProfileEmail>(
+      `/profile/emails/${id}/primary`,
+      { method: 'POST' },
       pin
     );
   }
@@ -306,8 +379,29 @@ class ApiClient {
   }
 
   // --- SKILLS ---
-  async getSkills(includeHidden = false): Promise<Skill[]> {
-    return this.request<Skill[]>(`/skills?include_hidden=${includeHidden}`);
+  async getSkillLevels(): Promise<SkillRatingLevel[]> {
+    return this.request<SkillRatingLevel[]>('/skills/levels');
+  }
+
+  async getSkillCategories(): Promise<string[]> {
+    const res = await this.request<{ categories: string[] }>('/skills/categories');
+    return res.categories;
+  }
+
+  async getSkills(includeHidden = false, category?: string, search?: string, rating?: number, sortBy = 'rating', domain?: string): Promise<Skill[]> {
+    const params = new URLSearchParams();
+    if (includeHidden) params.set('include_hidden', 'true');
+    if (category && category !== 'all') params.set('category', category);
+    if (domain && domain !== 'all') params.set('domain', domain);
+    if (search && search.trim()) params.set('search', search.trim());
+    if (rating && rating >= 1 && rating <= 7) params.set('rating', String(rating));
+    if (sortBy) params.set('sort_by', sortBy);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.request<Skill[]>(`/skills${qs}`);
+  }
+
+  async getSkill(id: number): Promise<Skill> {
+    return this.request<Skill>(`/skills/${id}`);
   }
 
   async createSkill(data: Omit<Skill, 'id' | 'level_label' | 'created_at' | 'updated_at'>, pin?: string): Promise<Skill> {
@@ -332,19 +426,30 @@ class ApiClient {
     );
   }
 
-  async deleteSkill(id: number, pin?: string): Promise<{ success: boolean }> {
-    return this.request<{ success: boolean }>(
+  async patchSkill(id: number, data: Partial<Skill>, pin?: string): Promise<Skill> {
+    return this.request<Skill>(
+      `/skills/${id}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async deleteSkill(id: number, pin?: string): Promise<{ success: boolean; message?: string }> {
+    return this.request<{ success: boolean; message?: string }>(
       `/skills/${id}`,
       { method: 'DELETE' },
       pin
     );
   }
 
-  async reorderSkills(items: { id: number; ordering: number }[], pin?: string): Promise<{ success: boolean }> {
-    return this.request<{ success: boolean }>(
+  async reorderSkills(items: { id: number; ordering: number }[], pin?: string): Promise<{ success: boolean; message?: string }> {
+    return this.request<{ success: boolean; message?: string }>(
       '/skills/reorder',
       {
-        method: 'POST',
+        method: 'PATCH',
         body: JSON.stringify(items)
       },
       pin
@@ -422,9 +527,48 @@ class ApiClient {
     return this.request<AssessmentResult[]>('/assessments/history');
   }
 
+  async resumeAssessmentSession(sessionId: string): Promise<SessionResumeResponse> {
+    return this.request<SessionResumeResponse>(`/personality/sessions/${sessionId}/resume`);
+  }
+
+  async updateAssessmentProgress(sessionId: string, progressIndex: number): Promise<{ success: boolean; progress_index: number }> {
+    return this.request<{ success: boolean; progress_index: number }>(`/personality/sessions/${sessionId}/progress`, {
+      method: 'PATCH',
+      body: JSON.stringify({ progress_index: progressIndex })
+    });
+  }
+
+  async saveAssessmentResponses(sessionId: string, responses: AnswerItem[]): Promise<{ success: boolean; saved_count: number }> {
+    return this.request<{ success: boolean; saved_count: number }>(`/personality/sessions/${sessionId}/responses`, {
+      method: 'POST',
+      body: JSON.stringify({ responses })
+    });
+  }
+
+  async toggleResultVisibility(resultId: number, isPublic: boolean, pin?: string): Promise<AssessmentResult> {
+    return this.request<AssessmentResult>(
+      `/personality/results/${resultId}/visibility`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ is_public: isPublic })
+      },
+      pin
+    );
+  }
+
+  async compareAssessmentResults(baselineSessionId: string, targetSessionId: string): Promise<ResultComparisonResponse> {
+    return this.request<ResultComparisonResponse>(
+      `/personality/compare?baseline_session_id=${baselineSessionId}&target_session_id=${targetSessionId}`
+    );
+  }
+
+  async getPublicPersonality(): Promise<PersonalitySynthesis> {
+    return this.request<PersonalitySynthesis>('/personality/public');
+  }
+
   async deleteAssessmentResult(id: number, pin?: string): Promise<{ success: boolean }> {
     return this.request<{ success: boolean }>(
-      `/assessments/results/${id}`,
+      `/personality/results/${id}`,
       { method: 'DELETE' },
       pin
     );
@@ -433,6 +577,12 @@ class ApiClient {
   // --- PERSONALITY SYNTHESIS ---
   async getPersonalitySynthesis(): Promise<PersonalitySynthesis> {
     return this.request<PersonalitySynthesis>('/personality/synthesis');
+  }
+
+  async refreshPersonalitySynthesis(): Promise<PersonalitySynthesis> {
+    return this.request<PersonalitySynthesis>('/personality/synthesis/refresh', {
+      method: 'POST'
+    });
   }
 
   async updatePersonalitySynthesis(
@@ -448,6 +598,289 @@ class ApiClient {
       pin
     );
   }
+
+  // --- ADMINISTRATIVE ASSESSMENT & QUESTION MANAGEMENT ---
+  async getAssessmentStats(): Promise<AssessmentStats> {
+    return this.request<AssessmentStats>('/personality/admin/stats');
+  }
+
+  async getAssessmentDefinitions(): Promise<AssessmentDefinition[]> {
+    return this.request<AssessmentDefinition[]>('/personality/admin/definitions');
+  }
+
+  async createAssessmentDefinition(
+    data: { code: string; name: string; version: string; tagline?: string; description?: string; question_count?: number; estimated_minutes?: number; status?: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED' },
+    pin?: string
+  ): Promise<AssessmentDefinition> {
+    return this.request<AssessmentDefinition>(
+      '/personality/admin/definitions',
+      {
+        method: 'POST',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async updateDefinitionStatus(id: number, status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED', pin?: string): Promise<AssessmentDefinition> {
+    return this.request<AssessmentDefinition>(
+      `/personality/admin/definitions/${id}/status`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify({ status })
+      },
+      pin
+    );
+  }
+
+  async getDefinitionQuestions(definitionId: number): Promise<AssessmentQuestion[]> {
+    return this.request<AssessmentQuestion[]>(`/personality/admin/definitions/${definitionId}/questions`);
+  }
+
+  async createAssessmentQuestion(
+    data: { id: string; assessment_definition_id?: number; definition_type: string; dimension: string; question_text: string; positive_pole?: string; negative_pole?: string; scale_type?: string; question_order?: number; scoring_configuration?: string },
+    pin?: string
+  ): Promise<AssessmentQuestion> {
+    return this.request<AssessmentQuestion>(
+      '/personality/admin/questions',
+      {
+        method: 'POST',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async updateAssessmentQuestion(
+    questionId: string,
+    data: Partial<AssessmentQuestion>,
+    pin?: string
+  ): Promise<AssessmentQuestion> {
+    return this.request<AssessmentQuestion>(
+      `/personality/admin/questions/${questionId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async toggleAssessmentQuestion(questionId: string, pin?: string): Promise<AssessmentQuestion> {
+    return this.request<AssessmentQuestion>(
+      `/personality/admin/questions/${questionId}/toggle`,
+      {
+        method: 'PATCH'
+      },
+      pin
+    );
+  }
+
+
+  // --- Projects Engine ---
+  async getProjectCategories(): Promise<{ statuses: string[]; link_types: string[]; tech_categories: string[] }> {
+    return this.request<{ statuses: string[]; link_types: string[]; tech_categories: string[] }>('/projects/categories');
+  }
+
+  async getProjects(
+    includeHidden = false,
+    options: {
+      search?: string;
+      status?: string;
+      technology?: string;
+      is_featured?: boolean;
+      sort_by?: string;
+    } = {}
+  ): Promise<Project[]> {
+    const params = new URLSearchParams();
+    if (includeHidden) params.append('include_hidden', 'true');
+    if (options.search) params.append('search', options.search);
+    if (options.status) params.append('status', options.status);
+    if (options.technology) params.append('technology', options.technology);
+    if (options.is_featured !== undefined) params.append('is_featured', String(options.is_featured));
+    if (options.sort_by) params.append('sort_by', options.sort_by);
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return this.request<Project[]>(`/projects${query}`);
+  }
+
+  async getProject(projectId: number, includeHidden = false): Promise<Project> {
+    const query = includeHidden ? '?include_hidden=true' : '';
+    return this.request<Project>(`/projects/${projectId}${query}`);
+  }
+
+  async createProject(data: ProjectCreateInput | Partial<Project>, pin?: string): Promise<Project> {
+    return this.request<Project>(
+      '/projects',
+      {
+        method: 'POST',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async updateProject(projectId: number, data: ProjectUpdateInput | Partial<Project>, pin?: string): Promise<Project> {
+    return this.request<Project>(
+      `/projects/${projectId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async patchProject(projectId: number, data: ProjectUpdateInput | Partial<Project>, pin?: string): Promise<Project> {
+    return this.request<Project>(
+      `/projects/${projectId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async deleteProject(projectId: number, pin?: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(
+      `/projects/${projectId}`,
+      {
+        method: 'DELETE'
+      },
+      pin
+    );
+  }
+
+  async reorderProjects(items: { id: number; display_order: number }[], pin?: string): Promise<Project[]> {
+    return this.request<Project[]>(
+      '/projects/reorder',
+      {
+        method: 'PATCH',
+        body: JSON.stringify(items)
+      },
+      pin
+    );
+  }
+
+  async addProjectLink(projectId: number, data: Partial<ProjectLink>, pin?: string): Promise<ProjectLink> {
+    return this.request<ProjectLink>(
+      `/projects/${projectId}/links`,
+      {
+        method: 'POST',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async updateProjectLink(projectId: number, linkId: number, data: Partial<ProjectLink>, pin?: string): Promise<ProjectLink> {
+    return this.request<ProjectLink>(
+      `/projects/${projectId}/links/${linkId}`,
+      {
+        method: 'PUT',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async patchProjectLink(projectId: number, linkId: number, data: Partial<ProjectLink>, pin?: string): Promise<ProjectLink> {
+    return this.request<ProjectLink>(
+      `/projects/${projectId}/links/${linkId}`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+      },
+      pin
+    );
+  }
+
+  async deleteProjectLink(projectId: number, linkId: number, pin?: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>(
+      `/projects/${projectId}/links/${linkId}`,
+      {
+        method: 'DELETE'
+      },
+      pin
+    );
+  }
+
+  async reorderProjectLinks(projectId: number, items: { id: number; display_order: number }[], pin?: string): Promise<ProjectLink[]> {
+    return this.request<ProjectLink[]>(
+      `/projects/${projectId}/links/reorder`,
+      {
+        method: 'PATCH',
+        body: JSON.stringify(items)
+      },
+      pin
+    );
+  }
+
+  async extractGithubProjects(
+    githubUrl: string,
+    customToken?: string
+  ): Promise<GitHubExtractionResponse> {
+    return this.request<GitHubExtractionResponse>('/projects/extract-github', {
+      method: 'POST',
+      body: JSON.stringify({
+        github_url: githubUrl,
+        custom_token: customToken?.trim() || undefined
+      })
+    });
+  }
+
+  async generateAiDossier(data: {
+    name: string;
+    raw_description?: string;
+    language?: string;
+    technologies?: (string | { name: string; category?: string })[];
+    topics?: string[];
+    links?: { label: string; url: string; link_type?: string; is_primary?: boolean }[];
+    stars?: number;
+    forks?: number;
+  }): Promise<{ short_description: string; description: string }> {
+    return this.request<{ short_description: string; description: string }>('/projects/generate-ai-dossier', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    });
+  }
+
+  async bulkImportProjects(
+    projects: ProjectCreateInput[],
+    pin?: string
+  ): Promise<Project[]> {
+    return this.request<Project[]>('/projects/bulk-import', {
+      method: 'POST',
+      body: JSON.stringify({ projects })
+    }, pin);
+  }
+
+  async getGithubLink(pin?: string): Promise<GitHubAccountLink | null> {
+    return this.request<GitHubAccountLink | null>('/projects/github-link', {}, pin);
+  }
+
+  async saveGithubLink(data: GitHubAccountLinkInput, pin?: string): Promise<GitHubAccountLink> {
+    return this.request<GitHubAccountLink>('/projects/github-link', {
+      method: 'POST',
+      body: JSON.stringify(data)
+    }, pin);
+  }
+
+  async unlinkGithubAccount(pin?: string): Promise<{ success: boolean; message: string }> {
+    return this.request<{ success: boolean; message: string }>('/projects/github-link', {
+      method: 'DELETE'
+    }, pin);
+  }
+
+  async syncGithubProjects(githubUrl?: string, pin?: string): Promise<GitHubSyncResult> {
+    const query = githubUrl ? `?github_url=${encodeURIComponent(githubUrl)}` : '';
+    return this.request<GitHubSyncResult>(`/projects/sync-github${query}`, {
+      method: 'POST'
+    }, pin);
+  }
+
+
 
   // --- CMS ---
   async getDashboardStats(): Promise<DashboardStats> {

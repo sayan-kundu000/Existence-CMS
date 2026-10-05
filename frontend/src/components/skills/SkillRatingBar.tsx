@@ -1,6 +1,6 @@
 import React from 'react';
 
-interface SkillRatingBarProps {
+export interface SkillRatingBarProps {
   rating: number; // 1 to 7
   levelLabel?: string;
   size?: 'sm' | 'md' | 'lg';
@@ -37,26 +37,36 @@ export const SkillRatingBar: React.FC<SkillRatingBarProps> = ({
   const colors = LEVEL_COLORS[normalizedRating] || LEVEL_COLORS[1];
   const label = levelLabel || LEVEL_NAMES[normalizedRating];
 
+  const heightClass = size === 'sm' ? 'h-1.5' : size === 'lg' ? 'h-3' : 'h-2';
+
   return (
-    <div className="w-full">
+    <div
+      className="w-full"
+      role="progressbar"
+      aria-label={`Skill level ${label}`}
+      aria-valuenow={normalizedRating}
+      aria-valuemin={1}
+      aria-valuemax={7}
+      aria-valuetext={`Level ${normalizedRating} of 7: ${label}`}
+    >
       <div className="flex items-center justify-between mb-2">
         <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[11px] font-semibold tracking-wide uppercase border ${colors.bg} ${colors.text}`}>
           Level {normalizedRating} · {label}
         </span>
-        <span className="text-[11px] font-mono text-slate-400">
+        <span className="text-[11px] font-mono text-slate-400" aria-hidden="true">
           {normalizedRating} / 7
         </span>
       </div>
 
       {showSegments ? (
-        <div className="grid grid-cols-7 gap-1.5 w-full">
+        <div className="grid grid-cols-7 gap-1.5 w-full" aria-hidden="true">
           {[1, 2, 3, 4, 5, 6, 7].map((step) => {
             const isFilled = step <= normalizedRating;
             const isCurrent = step === normalizedRating;
             return (
               <div
                 key={step}
-                className={`h-2 rounded-full transition-all duration-300 ${
+                className={`${heightClass} rounded-full transition-all duration-300 ${
                   isFilled
                     ? `${colors.bar} ${isCurrent ? colors.glow : 'opacity-85'}`
                     : 'bg-slate-800/70'
@@ -67,7 +77,7 @@ export const SkillRatingBar: React.FC<SkillRatingBarProps> = ({
           })}
         </div>
       ) : (
-        <div className="w-full h-2 bg-slate-800/80 rounded-full overflow-hidden">
+        <div className={`w-full ${heightClass} bg-slate-800/80 rounded-full overflow-hidden`} aria-hidden="true">
           <div
             className={`h-full transition-all duration-500 rounded-full ${colors.bar} ${colors.glow}`}
             style={{ width: `${(normalizedRating / 7) * 100}%` }}

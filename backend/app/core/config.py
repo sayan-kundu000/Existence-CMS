@@ -68,6 +68,38 @@ class Settings(BaseModel):
     # PIN security configuration
     PIN_MAX_FAILED_ATTEMPTS: int = int(os.getenv("PIN_MAX_FAILED_ATTEMPTS", "5"))
     PIN_LOCKOUT_MINUTES: int = int(os.getenv("PIN_LOCKOUT_MINUTES", "15"))
+    PIN_SESSION_EXPIRE_MINUTES: int = int(os.getenv("PIN_SESSION_EXPIRE_MINUTES", "15"))
+
+    # Password policy configuration
+    PASSWORD_MIN_LENGTH: int = int(os.getenv("PASSWORD_MIN_LENGTH", "8"))
+    PASSWORD_MAX_LENGTH: int = int(os.getenv("PASSWORD_MAX_LENGTH", "128"))
+
+    # Rate limiting configuration (brute force and abuse prevention)
+    RATE_LIMIT_ENABLED: bool = os.getenv("RATE_LIMIT_ENABLED", "True").lower() in ("true", "1", "yes")
+    RATE_LIMIT_LOGIN_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_LOGIN_PER_MINUTE", "10"))
+    RATE_LIMIT_PIN_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_PIN_PER_MINUTE", "10"))
+    RATE_LIMIT_GENERAL_PER_MINUTE: int = int(os.getenv("RATE_LIMIT_GENERAL_PER_MINUTE", "120"))
+
+    # Security headers configuration
+    SECURITY_HEADERS_ENABLED: bool = os.getenv("SECURITY_HEADERS_ENABLED", "True").lower() in ("true", "1", "yes")
+
+    def validate_production_config(self) -> None:
+        """
+        Validate critical configuration constraints for production deployments (Section 32).
+        Fails fast if production is configured with insecure defaults or missing critical secrets.
+        """
+        if self.ENVIRONMENT == "production":
+            insecure_defaults = [
+                "existence_development_secret_key_change_in_production_32bytes_min",
+                "existence_production_secret_key_change_me_before_deploying_min_32_chars",
+                "secret",
+                "changeme",
+            ]
+            if self.JWT_SECRET_KEY in insecure_defaults or len(self.JWT_SECRET_KEY) < 32:
+                raise RuntimeError(
+                    "FATAL CONFIGURATION ERROR: In production, JWT_SECRET_KEY must be a cryptographically "
+                    "secure string of at least 32 characters, not an insecure default."
+                )
 
 
 settings = Settings()

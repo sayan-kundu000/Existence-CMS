@@ -12,8 +12,8 @@ ASSESSMENT_REGISTRY: Dict[str, Dict[str, Any]] = {
             "Thinking (T) vs Feeling (F)",
             "Judging (J) vs Perceiving (P)"
         ],
-        "question_count": 43,
-        "estimated_minutes": 10
+        "question_count": 75,
+        "estimated_minutes": 15
     },
     "DISC": {
         "name": "DISC Behavioral Assessment",
@@ -25,8 +25,8 @@ ASSESSMENT_REGISTRY: Dict[str, Dict[str, Any]] = {
             "Steadiness (S) — Patient, Team-Oriented, Consistent",
             "Conscientiousness (C) — Analytical, Precise, Systematic"
         ],
-        "question_count": 43,
-        "estimated_minutes": 10
+        "question_count": 75,
+        "estimated_minutes": 15
     },
     "BIG_FIVE": {
         "name": "Big Five / OCEAN Model",
@@ -39,15 +39,15 @@ ASSESSMENT_REGISTRY: Dict[str, Dict[str, Any]] = {
             "Agreeableness (A) — Empathy, Altruism & Cooperative Spirit",
             "Neuroticism (N) — Emotional Sensitivity & Stress Reactivity"
         ],
-        "question_count": 43,
-        "estimated_minutes": 10
+        "question_count": 75,
+        "estimated_minutes": 15
     }
 }
 
-# Standardized Question Banks (Exactly 43 questions per assessment = 129 unique items)
+# Standardized Question Banks (Exactly 75 questions per assessment = 225 unique items)
 QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
     "MBTI": [
-        # --- Dimension: EI (Extraversion vs Introversion) — 11 Items ---
+        # --- Dimension: EI (Extraversion vs Introversion) — 19 Items ---
         {
             "id": "mbti_ei_1",
             "dimension": "EI",
@@ -136,8 +136,71 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "negative_pole": "Introversion (I)",
             "scale_type": "likert_5"
         },
-
-        # --- Dimension: SN (Sensing vs Intuition) — 11 Items ---
+        {
+            "id": "mbti_ei_12",
+            "dimension": "EI",
+            "text": "When entering an unfamiliar gathering, you effortlessly strike up conversations with strangers rather than hanging back near the perimeter.",
+            "positive_pole": "Extraversion (E)",
+            "negative_pole": "Introversion (I)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_ei_13",
+            "dimension": "EI",
+            "text": "You find that processing complex concepts by speaking through them with a colleague clarifies your thinking faster than internal deliberation.",
+            "positive_pole": "Extraversion (E)",
+            "negative_pole": "Introversion (I)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_ei_14",
+            "dimension": "EI",
+            "text": "You actively seek opportunities to facilitate group brainstorming sessions rather than working through ideation on your own.",
+            "positive_pole": "Extraversion (E)",
+            "negative_pole": "Introversion (I)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_ei_15",
+            "dimension": "EI",
+            "text": "A bustling, dynamic office environment stimulates your productivity more than an empty, silent workspace.",
+            "positive_pole": "Extraversion (E)",
+            "negative_pole": "Introversion (I)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_ei_16",
+            "dimension": "EI",
+            "text": "You naturally take on the role of social catalyst or connector when bringing different teams together for collaborative initiatives.",
+            "positive_pole": "Extraversion (E)",
+            "negative_pole": "Introversion (I)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_ei_17",
+            "dimension": "EI",
+            "text": "You tend to share your immediate thoughts and impressions freely without prolonged internal deliberation or filtering.",
+            "positive_pole": "Extraversion (E)",
+            "negative_pole": "Introversion (I)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_ei_18",
+            "dimension": "EI",
+            "text": "You feel invigorated and energized after delivering a presentation or leading a lively question-and-answer session.",
+            "positive_pole": "Extraversion (E)",
+            "negative_pole": "Introversion (I)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_ei_19",
+            "dimension": "EI",
+            "text": "You prefer taking action in public environments where spontaneous team interaction and banter are part of the daily workflow.",
+            "positive_pole": "Extraversion (E)",
+            "negative_pole": "Introversion (I)",
+            "scale_type": "likert_5"
+        },
+        # --- Dimension: SN (Sensing vs Intuition) — 19 Items ---
         {
             "id": "mbti_sn_1",
             "dimension": "SN",
@@ -226,8 +289,71 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "negative_pole": "Sensing (S)",
             "scale_type": "likert_5"
         },
-
-        # --- Dimension: TF (Thinking vs Feeling) — 11 Items ---
+        {
+            "id": "mbti_sn_12",
+            "dimension": "SN",
+            "text": "You prefer exploring theoretical models and speculative futures over refining existing, proven practical procedures.",
+            "positive_pole": "Intuition (N)",
+            "negative_pole": "Sensing (S)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_sn_13",
+            "dimension": "SN",
+            "text": "When reading technical literature, you focus on underlying architectural philosophy rather than granular implementation syntax.",
+            "positive_pole": "Intuition (N)",
+            "negative_pole": "Sensing (S)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_sn_14",
+            "dimension": "SN",
+            "text": "You are motivated by conceptual novelty and inventive paradigms rather than predictable, established operational standards.",
+            "positive_pole": "Intuition (N)",
+            "negative_pole": "Sensing (S)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_sn_15",
+            "dimension": "SN",
+            "text": "You frequently synthesize insights from seemingly unrelated disciplines to propose groundbreaking strategic directions.",
+            "positive_pole": "Intuition (N)",
+            "negative_pole": "Sensing (S)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_sn_16",
+            "dimension": "SN",
+            "text": "You are more fascinated by what could conceivably exist in tomorrow's landscape than what currently functions reliably today.",
+            "positive_pole": "Intuition (N)",
+            "negative_pole": "Sensing (S)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_sn_17",
+            "dimension": "SN",
+            "text": "You enjoy reading between the lines and uncovering latent symbolism or hidden intentions in human communications.",
+            "positive_pole": "Intuition (N)",
+            "negative_pole": "Sensing (S)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_sn_18",
+            "dimension": "SN",
+            "text": "You find detailed, repetitive administrative compliance tasks tedious compared to speculative product roadmapping.",
+            "positive_pole": "Intuition (N)",
+            "negative_pole": "Sensing (S)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_sn_19",
+            "dimension": "SN",
+            "text": "You trust your intuitive hunches about emerging technology trends even when immediate statistical evidence is sparse.",
+            "positive_pole": "Intuition (N)",
+            "negative_pole": "Sensing (S)",
+            "scale_type": "likert_5"
+        },
+        # --- Dimension: TF (Thinking vs Feeling) — 19 Items ---
         {
             "id": "mbti_tf_1",
             "dimension": "TF",
@@ -316,8 +442,71 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "negative_pole": "Thinking (T)",
             "scale_type": "likert_5"
         },
-
-        # --- Dimension: JP (Judging vs Perceiving) — 10 Items ---
+        {
+            "id": "mbti_tf_12",
+            "dimension": "TF",
+            "text": "In contentious discussions, preserving relational harmony and mutual trust takes precedence over winning purely logical debates.",
+            "positive_pole": "Feeling (F)",
+            "negative_pole": "Thinking (T)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_tf_13",
+            "dimension": "TF",
+            "text": "You evaluate the success of an organizational decision primarily by its positive impact on human well-being and team dignity.",
+            "positive_pole": "Feeling (F)",
+            "negative_pole": "Thinking (T)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_tf_14",
+            "dimension": "TF",
+            "text": "When a teammate experiences personal distress, you instinctively provide emotional empathy before analyzing practical remedies.",
+            "positive_pole": "Feeling (F)",
+            "negative_pole": "Thinking (T)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_tf_15",
+            "dimension": "TF",
+            "text": "You naturally prioritize interpersonal consensus and mutual understanding over uncompromising mechanical efficiency.",
+            "positive_pole": "Feeling (F)",
+            "negative_pole": "Thinking (T)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_tf_16",
+            "dimension": "TF",
+            "text": "You feel deeply unsettled when an organization treats individuals as interchangeable resources rather than unique human beings.",
+            "positive_pole": "Feeling (F)",
+            "negative_pole": "Thinking (T)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_tf_17",
+            "dimension": "TF",
+            "text": "You rely heavily on personal empathy and shared team values when formulating policies or resolving operational disagreements.",
+            "positive_pole": "Feeling (F)",
+            "negative_pole": "Thinking (T)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_tf_18",
+            "dimension": "TF",
+            "text": "You are motivated by praise that recognizes your human kindness and supportive spirit rather than purely clinical metrics.",
+            "positive_pole": "Feeling (F)",
+            "negative_pole": "Thinking (T)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_tf_19",
+            "dimension": "TF",
+            "text": "You seek to inspire and elevate colleagues through encouragement and psychological safety rather than tough-love critique.",
+            "positive_pole": "Feeling (F)",
+            "negative_pole": "Thinking (T)",
+            "scale_type": "likert_5"
+        },
+        # --- Dimension: JP (Judging vs Perceiving) — 18 Items ---
         {
             "id": "mbti_jp_1",
             "dimension": "JP",
@@ -397,11 +586,75 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "positive_pole": "Perceiving (P)",
             "negative_pole": "Judging (J)",
             "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_jp_11",
+            "dimension": "JP",
+            "text": "You prefer remaining open to emergent opportunities and late-breaking changes rather than prematurely committing to rigid blueprints.",
+            "positive_pole": "Perceiving (P)",
+            "negative_pole": "Judging (J)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_jp_12",
+            "dimension": "JP",
+            "text": "You find rigid operational constraints stifle your ingenuity and prefer defining workflows organically as situations develop.",
+            "positive_pole": "Perceiving (P)",
+            "negative_pole": "Judging (J)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_jp_13",
+            "dimension": "JP",
+            "text": "You enjoy exploring serendipitous tangents and exploratory experiments even when they deviate from predetermined milestone paths.",
+            "positive_pole": "Perceiving (P)",
+            "negative_pole": "Judging (J)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_jp_14",
+            "dimension": "JP",
+            "text": "You view project deadlines as helpful directional targets rather than non-negotiable absolute constraints.",
+            "positive_pole": "Perceiving (P)",
+            "negative_pole": "Judging (J)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_jp_15",
+            "dimension": "JP",
+            "text": "You feel most creative and agile when navigating loose guidelines that encourage real-time troubleshooting and improvisation.",
+            "positive_pole": "Perceiving (P)",
+            "negative_pole": "Judging (J)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_jp_16",
+            "dimension": "JP",
+            "text": "You hesitate to lock down finalized system specifications early, preferring to keep design possibilities open as long as viable.",
+            "positive_pole": "Perceiving (P)",
+            "negative_pole": "Judging (J)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_jp_17",
+            "dimension": "JP",
+            "text": "You thrive in high-velocity startup environments where daily priorities pivot dynamically based on customer discoveries.",
+            "positive_pole": "Perceiving (P)",
+            "negative_pole": "Judging (J)",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "mbti_jp_18",
+            "dimension": "JP",
+            "text": "You prefer celebrating spontaneous breakthroughs over executing meticulous, step-by-step checklist protocols.",
+            "positive_pole": "Perceiving (P)",
+            "negative_pole": "Judging (J)",
+            "scale_type": "likert_5"
         }
     ],
 
     "DISC": [
-        # --- Dominance (D) — 11 Items ---
+        # --- Dominance (D) — 19 Items ---
         {
             "id": "disc_d_1",
             "dimension": "D",
@@ -468,8 +721,55 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "text": "You push continuously for faster turnaround times and dislike resting on past accomplishments.",
             "scale_type": "likert_5"
         },
-
-        # --- Influence (I) — 11 Items ---
+        {
+            "id": "disc_d_12",
+            "dimension": "D",
+            "text": "You assertively drive challenging initiatives forward and insist on measurable, high-impact results from every team member.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_d_13",
+            "dimension": "D",
+            "text": "You are completely comfortable making hard executive calls under extreme time pressure with imperfect data.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_d_14",
+            "dimension": "D",
+            "text": "You actively seek leadership opportunities where you possess the autonomous authority to command strategic outcomes.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_d_15",
+            "dimension": "D",
+            "text": "You challenge traditional assumptions boldly when you believe a more aggressive tactic will capture greater market share.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_d_16",
+            "dimension": "D",
+            "text": "You readily confront project bottlenecks head-on without softening the urgency or seriousness of the issue.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_d_17",
+            "dimension": "D",
+            "text": "You expect rapid progress reports focused strictly on quantifiable key performance indicators and bottom-line impact.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_d_18",
+            "dimension": "D",
+            "text": "You possess a powerful competitive instinct that drives you to outperform rival organizations and set new benchmarks.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_d_19",
+            "dimension": "D",
+            "text": "You refuse to let operational complacency slow down momentum and will personally push through institutional resistance.",
+            "scale_type": "likert_5"
+        },
+        # --- Influence (I) — 19 Items ---
         {
             "id": "disc_i_1",
             "dimension": "I",
@@ -536,8 +836,55 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "text": "You encourage team members to express themselves freely and cultivate an energetic, expressive group culture.",
             "scale_type": "likert_5"
         },
-
-        # --- Steadiness (S) — 11 Items ---
+        {
+            "id": "disc_i_12",
+            "dimension": "I",
+            "text": "You inspire enthusiasm in others by articulating an exciting, optimistic vision of what the team can achieve together.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_i_13",
+            "dimension": "I",
+            "text": "You excel at building rapport quickly and generating authentic goodwill with prospective clients and cross-functional allies.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_i_14",
+            "dimension": "I",
+            "text": "You use humor, charisma, and storytelling to disarm skepticism and bring skeptical stakeholders into enthusiastic alignment.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_i_15",
+            "dimension": "I",
+            "text": "You thrive in environments where creative self-expression, public speaking, and spontaneous social interaction are celebrated.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_i_16",
+            "dimension": "I",
+            "text": "You naturally celebrate team achievements with celebratory fanfare to sustain high morale and collective vitality.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_i_17",
+            "dimension": "I",
+            "text": "You prefer collaborative brainstorming retreats and high-energy workshops over quiet solo spreadsheet audits.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_i_18",
+            "dimension": "I",
+            "text": "You persuade colleagues by appealing to shared aspirations and creating a compelling emotional narrative around your ideas.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_i_19",
+            "dimension": "I",
+            "text": "You are energized by public networking and expand your social influence effortlessly across different professional circles.",
+            "scale_type": "likert_5"
+        },
+        # --- Steadiness (S) — 19 Items ---
         {
             "id": "disc_s_1",
             "dimension": "S",
@@ -604,8 +951,55 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "text": "You prioritize safety, dependable follow-through, and reliable service over experimental, high-variance gambles.",
             "scale_type": "likert_5"
         },
-
-        # --- Conscientiousness (C) — 10 Items ---
+        {
+            "id": "disc_s_12",
+            "dimension": "S",
+            "text": "You provide calm, steady emotional grounding and dependable support when organizational turbulence destabilizes your team.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_s_13",
+            "dimension": "S",
+            "text": "You place high value on team loyalty, steady predictability, and preserving established working relationships over time.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_s_14",
+            "dimension": "S",
+            "text": "You patiently listen to colleagues' concerns without interrupting, ensuring everyone feels heard and valued in group settings.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_s_15",
+            "dimension": "S",
+            "text": "You prefer working within established, well-tested team rhythms rather than enduring constant unannounced corporate reorganizations.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_s_16",
+            "dimension": "S",
+            "text": "You are known as a dependable anchor who quietly and faithfully finishes critical support tasks without demanding the spotlight.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_s_17",
+            "dimension": "S",
+            "text": "You build enduring, trustworthy professional partnerships founded on mutual respect, patience, and unwavering consistency.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_s_18",
+            "dimension": "S",
+            "text": "You take deliberate care to ensure transitions and changes are introduced gently to prevent unnecessary team stress.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_s_19",
+            "dimension": "S",
+            "text": "You are deeply committed to harmony in the workplace and actively defuse tensions through steady, peaceful mediation.",
+            "scale_type": "likert_5"
+        },
+        # --- Conscientiousness (C) — 18 Items ---
         {
             "id": "disc_c_1",
             "dimension": "C",
@@ -665,11 +1059,59 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "dimension": "C",
             "text": "You routinely perform stress testing and risk assessments to ensure critical workflows cannot fail unexpectedly.",
             "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_c_11",
+            "dimension": "C",
+            "text": "You rigorously audit data, formulas, and technical artifacts to verify absolute factual correctness before sign-off.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_c_12",
+            "dimension": "C",
+            "text": "You adhere strictly to engineering best practices, compliance guidelines, and systematic quality assurance standards.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_c_13",
+            "dimension": "C",
+            "text": "You insist on clear empirical evidence and verified validation benchmarks before endorsing novel strategic claims.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_c_14",
+            "dimension": "C",
+            "text": "You design detailed systems, checklists, and standardized documentation to prevent human error and operational regressions.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_c_15",
+            "dimension": "C",
+            "text": "You enjoy deep analytical troubleshooting where finding the root cause of an anomaly requires methodical persistence.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_c_16",
+            "dimension": "C",
+            "text": "You prefer working in environments with well-defined standards of excellence where precision is recognized and rewarded.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_c_17",
+            "dimension": "C",
+            "text": "You carefully weigh every potential variable and risk factor before committing to an architectural or financial strategy.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "disc_c_18",
+            "dimension": "C",
+            "text": "You maintain an orderly, disciplined approach to problem solving and reject sloppy, hasty compromises in craftsmanship.",
+            "scale_type": "likert_5"
         }
     ],
 
     "BIG_FIVE": [
-        # --- Openness (O) — 9 Items ---
+        # --- Openness (O) — 15 Items ---
         {
             "id": "b5_o_1",
             "dimension": "O",
@@ -724,8 +1166,43 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "text": "You readily adjust your core mental models when presented with a compelling new paradigm.",
             "scale_type": "likert_5"
         },
-
-        # --- Conscientiousness (C) — 9 Items ---
+        {
+            "id": "b5_o_10",
+            "dimension": "O",
+            "text": "You are intensely curious about avant-garde philosophical questions and novel schools of contemporary thought.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_o_11",
+            "dimension": "O",
+            "text": "You love immersing yourself in diverse artistic traditions, architectural innovations, and world cultural heritage.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_o_12",
+            "dimension": "O",
+            "text": "You are constantly experimenting with new intellectual tools, mental frameworks, and interdisciplinary methodologies.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_o_13",
+            "dimension": "O",
+            "text": "You find unconventional theories and speculative possibilities intellectually exhilarating rather than impractical.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_o_14",
+            "dimension": "O",
+            "text": "You actively seek out complex cinematic, literary, or musical works that challenge conventional narrative structures.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_o_15",
+            "dimension": "O",
+            "text": "You delight in re-examining your fundamental assumptions whenever you encounter persuasive, unorthodox perspectives.",
+            "scale_type": "likert_5"
+        },
+        # --- Conscientiousness (C) — 15 Items ---
         {
             "id": "b5_c_1",
             "dimension": "C",
@@ -780,8 +1257,43 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "text": "You hold yourself personally accountable for your mistakes rather than blaming external circumstances.",
             "scale_type": "likert_5"
         },
-
-        # --- Extraversion (E) — 9 Items ---
+        {
+            "id": "b5_c_10",
+            "dimension": "C",
+            "text": "You consistently organize your workload with meticulous precision, tracking tasks, milestones, and dependencies methodically.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_c_11",
+            "dimension": "C",
+            "text": "You maintain exceptional self-discipline and persist through grueling, repetitive tasks without losing focus or quality.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_c_12",
+            "dimension": "C",
+            "text": "You take personal pride in being impeccably prepared for every meeting, review, and operational commitment.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_c_13",
+            "dimension": "C",
+            "text": "You follow through on commitments with uncompromising rigor, even when unforeseen obstacles demand long hours.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_c_14",
+            "dimension": "C",
+            "text": "You systematically eliminate inefficiencies from your daily schedule through structured planning and prioritization.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_c_15",
+            "dimension": "C",
+            "text": "You double-check calculations, configurations, and deliverable specifications to guarantee flawless precision.",
+            "scale_type": "likert_5"
+        },
+        # --- Extraversion (E) — 15 Items ---
         {
             "id": "b5_e_1",
             "dimension": "E",
@@ -836,8 +1348,43 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "text": "You express your opinions with bold self-assurance without worrying excessively about how others might judge you.",
             "scale_type": "likert_5"
         },
-
-        # --- Agreeableness (A) — 8 Items ---
+        {
+            "id": "b5_e_10",
+            "dimension": "E",
+            "text": "You are consistently energetic, talkative, and vivacious in social settings, bringing positive momentum to conversations.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_e_11",
+            "dimension": "E",
+            "text": "You naturally take the spotlight in group discussions and communicate your perspectives with assertiveness and passion.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_e_12",
+            "dimension": "E",
+            "text": "You thrive in high-stimulation environments filled with vibrant music, lively conversations, and rapid social exchanges.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_e_13",
+            "dimension": "E",
+            "text": "You actively initiate social gatherings and enjoy bringing diverse groups of people together for shared celebrations.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_e_14",
+            "dimension": "E",
+            "text": "You express your feelings and enthusiasm outwardly and openly, radiating warmth and excitement to those around you.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_e_15",
+            "dimension": "E",
+            "text": "You prefer engaging in fast-paced collaborative group projects over long periods of solitary, uninterrupted execution.",
+            "scale_type": "likert_5"
+        },
+        # --- Agreeableness (A) — 15 Items ---
         {
             "id": "b5_a_1",
             "dimension": "A",
@@ -886,8 +1433,49 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "text": "You avoid sarcastic or condescending remarks and strive to make everyone around you feel valued and accepted.",
             "scale_type": "likert_5"
         },
-
-        # --- Neuroticism (N) — 8 Items ---
+        {
+            "id": "b5_a_9",
+            "dimension": "A",
+            "text": "You naturally assume that people have good intentions and prefer extending trust rather than cultivating cynical skepticism.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_a_10",
+            "dimension": "A",
+            "text": "You go out of your way to assist coworkers or neighbors in distress, giving generously of your time and resources.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_a_11",
+            "dimension": "A",
+            "text": "You are gentle, courteous, and polite in your interactions, treating everyone you meet with unconditional dignity.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_a_12",
+            "dimension": "A",
+            "text": "You seek compromise and common ground in arguments, prioritizing peaceful reconciliation over asserting dominance.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_a_13",
+            "dimension": "A",
+            "text": "You are deeply sensitive to the feelings of others and feel genuine sorrow when someone around you is suffering.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_a_14",
+            "dimension": "A",
+            "text": "You cooperate willingly with group decisions, prioritizing collective team harmony over individual personal preferences.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_a_15",
+            "dimension": "A",
+            "text": "You forgive transgressions readily and hold no grudges against colleagues who make honest, unintentional mistakes.",
+            "scale_type": "likert_5"
+        },
+        # --- Neuroticism (N) — 15 Items ---
         {
             "id": "b5_n_1",
             "dimension": "N",
@@ -934,6 +1522,48 @@ QUESTION_BANKS: Dict[str, List[Dict[str, Any]]] = {
             "id": "b5_n_8",
             "dimension": "N",
             "text": "You are prone to physical manifestations of stress, such as a racing heart or tense muscles, during conflicts.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_n_9",
+            "dimension": "N",
+            "text": "You frequently experience feelings of apprehension or self-consciousness when entering unfamiliar social gatherings.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_n_10",
+            "dimension": "N",
+            "text": "Small everyday irritations or administrative delays can trigger noticeable feelings of anxiety and impatience.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_n_11",
+            "dimension": "N",
+            "text": "You often replay past awkward interactions in your head, analyzing what you should have said differently.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_n_12",
+            "dimension": "N",
+            "text": "You feel deeply unsettled when facing ambiguous deadlines or unpredictable changes in project requirements.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_n_13",
+            "dimension": "N",
+            "text": "You find it challenging to shake off persistent feelings of dread or impending difficulty during stressful seasons.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_n_14",
+            "dimension": "N",
+            "text": "Your self-confidence can waver significantly when you encounter unexpected criticism or cold indifference from peers.",
+            "scale_type": "likert_5"
+        },
+        {
+            "id": "b5_n_15",
+            "dimension": "N",
+            "text": "You are easily startled by sudden loud noises or abrupt environmental disruptions when concentrating on work.",
             "scale_type": "likert_5"
         }
     ]

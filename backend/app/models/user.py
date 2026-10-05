@@ -21,9 +21,11 @@ class AdminUser(Base):
     hashed_password = synonym("password_hash")
 
     # Relationships
+    profile = relationship("Profile", back_populates="user", uselist=False)
     pin_security = relationship("PinSecurity", back_populates="admin_user", uselist=False, cascade="all, delete-orphan")
     auth_sessions = relationship("AuthSession", back_populates="admin_user", cascade="all, delete-orphan")
     pin_verification_sessions = relationship("PinVerificationSession", back_populates="admin_user", cascade="all, delete-orphan")
+
 
 
 # Backwards compatibility alias for User

@@ -30,15 +30,18 @@ def require_pin_verification(
 
     # 1. Check if token matches an active, unexpired, unrevoked PinVerificationSession
     now_utc = datetime.now(timezone.utc)
-    active_session = db.query(PinVerificationSession).filter(
+    active_sessions = db.query(PinVerificationSession).filter(
         PinVerificationSession.admin_user_id == current_user.id,
         PinVerificationSession.verification_identifier == pin_token_candidate,
-        PinVerificationSession.revoked_at.is_(None),
-        PinVerificationSession.expires_at > now_utc
-    ).first()
+        PinVerificationSession.revoked_at.is_(None)
+    ).all()
 
-    if active_session:
-        return current_user
+    for s in active_sessions:
+        exp = s.expires_at
+        if exp.tzinfo is None:
+            exp = exp.replace(tzinfo=timezone.utc)
+        if exp > now_utc:
+            return current_user
 
     # 2. Otherwise verify as raw PIN with strict attempt tracking & lockout protection
     verify_user_pin(
